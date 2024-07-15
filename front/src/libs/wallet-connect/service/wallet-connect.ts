@@ -144,6 +144,32 @@ class WalletConnect extends EventEmitter {
     this._setSessions();
   }
 
+  public async handleRequest(
+    request: Omit<Parameters<typeof this._jsonRpcEventRouter>[0], "onSuccess" | "onReject">,
+  ): Promise<{ result: any; jsonrpc: string }> {
+    return new Promise((resolve, reject) => {
+      this._jsonRpcEventRouter({
+        method: request.method,
+        params: request.params,
+        origin: request.origin,
+        onSuccess: async (hash) => {
+          const response = { result: hash, jsonrpc: "2.0" };
+          resolve(response);
+        },
+        onReject: async () => {
+          const response = {
+            jsonrpc: "2.0",
+            error: {
+              code: 5000,
+              message: "User rejected.",
+            },
+          };
+          reject(response);
+        },
+      });
+    });
+  }
+
   private async _onSessionProposal({ id, params }: Web3WalletTypes.SessionProposal) {
     if (!this._web3wallet) return;
 

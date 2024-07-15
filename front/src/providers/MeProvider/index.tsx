@@ -86,6 +86,7 @@ function useMeHook() {
       walletConnect.smartWalletAddress = me.account;
       setIsReturning(true);
       setMe(me);
+      return me;
     } catch (e) {
       localStorage.removeItem("passkeys4337.returning");
       disconnect();
