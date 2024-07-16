@@ -70,13 +70,14 @@ export default function WCSendTransactionModal({ params, origin, onSuccess }: Pr
       const { maxFeePerGas, maxPriorityFeePerGas } = await smartWallet.client.estimateFeesPerGas();
 
       const value = params?.value ? BigInt(params.value) : BigInt(0);
+      const data = params?.data ? params.data : "0x";
 
       const userOp = await builder.buildUserOp({
         calls: [
           {
             dest: params.to,
             value,
-            data: params.data,
+            data,
           },
         ],
         maxFeePerGas: maxFeePerGas as bigint,
@@ -224,14 +225,14 @@ export default function WCSendTransactionModal({ params, origin, onSuccess }: Pr
           </Flex>
 
           <Flex direction={"column"} gap="3">
-            {error && (
+            {error && error instanceof Error && (
               <Callout.Root
                 style={{ maxHeight: "150px", overflowY: "scroll", wordBreak: "break-word" }}
               >
                 <Callout.Icon>
                   <InfoCircledIcon />
                 </Callout.Icon>
-                <Callout.Text>{error}</Callout.Text>
+                <Callout.Text>{error.message}</Callout.Text>
               </Callout.Root>
             )}
             <Button variant="outline" size="3" type="submit">

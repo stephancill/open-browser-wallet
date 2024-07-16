@@ -146,15 +146,14 @@ class WalletConnect extends EventEmitter {
 
   public async handleRequest(
     request: Omit<Parameters<typeof this._jsonRpcEventRouter>[0], "onSuccess" | "onReject">,
-  ): Promise<{ result: any; jsonrpc: string }> {
+  ): Promise<any> {
     return new Promise((resolve, reject) => {
       this._jsonRpcEventRouter({
         method: request.method,
         params: request.params,
         origin: request.origin,
-        onSuccess: async (hash) => {
-          const response = { result: hash, jsonrpc: "2.0" };
-          resolve(response);
+        onSuccess: async (result) => {
+          resolve(result);
         },
         onReject: async () => {
           const response = {
@@ -269,7 +268,7 @@ class WalletConnect extends EventEmitter {
     method: string;
     params: any[];
     origin: string;
-    onSuccess: (hash: Hash) => void;
+    onSuccess: (args: any) => void;
     onReject: () => Promise<void>;
   }) {
     switch (method) {
@@ -281,6 +280,12 @@ class WalletConnect extends EventEmitter {
           onReject,
         } as EthSendEventPayload);
         return null;
+
+      case EIP155Method.SwitchChain: {
+        // emit switch chain event
+        onSuccess(null);
+        return null;
+      }
 
       default:
         this.emit(WCEvent.MethodNotSupported, method);

@@ -125,7 +125,7 @@ export enum EIP155Method {
   SignTypedDataV4 = "eth_signTypedData_v4",
   EthSendRawTransaction = "eth_sendRawTransaction",
   EthSendTransaction = "eth_sendTransaction",
-  // SwitchChain = "wallet_switchEthereumChain",
+  SwitchChain = "wallet_switchEthereumChain",
   // AddChain = "wallet_addEthereumChain",
 }
 

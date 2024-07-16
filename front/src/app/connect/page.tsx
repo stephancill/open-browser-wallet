@@ -12,6 +12,7 @@ import {
   RPCRequest,
   RPCResponse,
 } from "../../utils/cipher";
+import { smartWallet } from "../../libs/smart-wallet";
 
 const keyManager = new SCWKeyManager();
 
@@ -33,6 +34,12 @@ async function sendEncryptedMessage({ id, content }: { id: string; content: any 
     },
     "*",
   );
+}
+
+function closePopup() {
+  const parent = window.self;
+  parent.opener = window.self;
+  parent.close();
 }
 
 export default function Page() {
@@ -71,21 +78,47 @@ export default function Page() {
           const peerPublicKey = await importKeyFromHexString("public", m.data.sender);
           await keyManager.setPeerPublicKey(peerPublicKey);
           const accountResult = await me.get();
+
+          const chains: Record<number, string> = {};
+          if (smartWallet.client.chain) {
+            chains[smartWallet.client.chain.id] = smartWallet.client.chain.rpcUrls.default.http[0];
+          }
+
           const message = {
             result: { value: accountResult?.account },
+            data: {
+              chains,
+            },
           };
-          await sendEncryptedMessage({ id: m.data.id, content: message });
+          await sendEncryptedMessage({
+            id: m.data.id,
+            content: message,
+          });
 
-          var daddy = window.self;
-          daddy.opener = window.self;
-          daddy.close();
+          closePopup();
         } else if (decrypted && "action" in decrypted) {
+          smartWallet.init();
+          if (!decrypted.action.params) {
+            console.error("No params in action");
+            return;
+          }
+
           const result = await walletConnect.handleRequest({
             method: decrypted.action.method,
             origin: m.origin,
             params: decrypted.action.params as any,
           });
-          await sendEncryptedMessage({ id: m.data.id, content: result });
+
+          const message = {
+            result: { value: result },
+          };
+
+          await sendEncryptedMessage({
+            id: m.data.id,
+            content: message,
+          });
+
+          closePopup();
         }
       },
       false,
