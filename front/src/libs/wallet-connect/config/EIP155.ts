@@ -39,14 +39,14 @@ export const EIP155_MAINNET_CHAINS: WCChains = {
   //   rpc: "https://polygon-rpc.com/",
   //   namespace: "eip155",
   // },
-  // "eip155:10": {
-  //   chainId: 10,
-  //   name: "Optimism",
-  //   logo: "/chain-logos/eip155-10.png",
-  //   rgb: "235, 0, 25",
-  //   rpc: "https://mainnet.optimism.io",
-  //   namespace: "eip155",
-  // },
+  "eip155:10": {
+    chainId: 10,
+    name: "Optimism",
+    logo: "/chain-logos/eip155-10.png",
+    rgb: "235, 0, 25",
+    rpc: "https://mainnet.optimism.io",
+    namespace: "eip155",
+  },
   // "eip155:324": {
   //   chainId: 324,
   //   name: "zkSync Era",
@@ -126,6 +126,7 @@ export enum EIP155Method {
   EthSendRawTransaction = "eth_sendRawTransaction",
   EthSendTransaction = "eth_sendTransaction",
   SwitchChain = "wallet_switchEthereumChain",
+  ChainId = "eth_chainId",
   // AddChain = "wallet_addEthereumChain",
 }
 

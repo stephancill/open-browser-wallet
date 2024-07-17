@@ -21,8 +21,13 @@ export enum WCEvent {
   sessionChanged = "session_changed",
   pairingApproved = "pairing_approved",
   pairingRejected = "pairing_rejected",
-  EthSendTransaction = EIP155Method.EthSendTransaction,
   MethodNotSupported = "method_not_supported",
+  Sign = "sign",
+  EthSendTransaction = EIP155Method.EthSendTransaction,
+  ChainId = EIP155Method.ChainId,
+  // SignTypedData = EIP155Method.SignTypedData,
+  // SignTypedDataV3 = EIP155Method.SignTypedDataV3,
+  // SignTypedDataV4 = EIP155Method.SignTypedDataV4,
 }
 
 export interface IPairingApprovedEventPayload {
@@ -35,6 +40,7 @@ export interface IPairingRejectedEventPayload {
 }
 
 export type EthSendEventPayload = {
+  method?: string;
   params: EthSendTransactionParams;
   origin: string;
   onSuccess: (hash: Hash) => void;
@@ -284,6 +290,18 @@ class WalletConnect extends EventEmitter {
       case EIP155Method.SwitchChain: {
         // emit switch chain event
         onSuccess(null);
+        return null;
+      }
+
+      // case EIP155Method.SignTypedDataV4:
+      case EIP155Method.PersonalSign: {
+        this.emit(WCEvent.Sign, {
+          method,
+          params,
+          origin,
+          onSuccess,
+          onReject,
+        });
         return null;
       }
 
