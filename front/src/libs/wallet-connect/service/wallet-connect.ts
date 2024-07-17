@@ -293,7 +293,7 @@ class WalletConnect extends EventEmitter {
         return null;
       }
 
-      // case EIP155Method.SignTypedDataV4:
+      case EIP155Method.SignTypedDataV4:
       case EIP155Method.PersonalSign: {
         this.emit(WCEvent.Sign, {
           method,

@@ -118,7 +118,9 @@ export default function Page() {
             content: message,
           });
 
-          closePopup();
+          if (decrypted.action.method !== "eth_sendTransaction") {
+            closePopup();
+          }
         }
       },
       false,

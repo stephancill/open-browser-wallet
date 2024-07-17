@@ -10,8 +10,9 @@ import {
 } from "@radix-ui/react-icons";
 import { Button, Callout, Flex, Heading, Link, Text, TextArea } from "@radix-ui/themes";
 import { useState } from "react";
-import { Chain, Hash, Hex, WalletRpcSchema, hashMessage, hexToString } from "viem";
+import { Chain, Hash, Hex, WalletRpcSchema, hashMessage, hashTypedData, hexToString } from "viem";
 import Spinner from "../Spinner";
+import EIP712Renderer from "../EIP712Renderer";
 
 type SignSchemas = WalletRpcSchema[8] | WalletRpcSchema[10];
 
@@ -42,6 +43,8 @@ export default function WCSignModal({
       console.log("message", hexToString(params[0]));
       if (method === "personal_sign") {
         hash = hashMessage(hexToString(params[0]) as string);
+      } else if (method === "eth_signTypedData_v4") {
+        hash = hashTypedData(params[1] as any);
       } else {
         throw new Error("Unsupported method");
       }
@@ -123,17 +126,28 @@ export default function WCSignModal({
             <Flex direction="column">
               <Flex direction="column" gap="3">
                 <div>
-                  <Text style={{ color: "var(--accent-10)", marginLeft: "1rem" }}>Data:</Text>
-                  <TextArea
-                    disabled
-                    style={{
-                      resize: "none",
-                      minHeight: "100px",
-                      borderRadius: "20px",
-                      padding: ".5rem",
-                    }}
-                    value={hexToString(params[0])}
-                  />
+                  {method === "personal_sign" ? (
+                    <div>
+                      <Text style={{ color: "var(--accent-10)", marginLeft: "1rem" }}>Data:</Text>
+                      <TextArea
+                        disabled
+                        style={{
+                          resize: "none",
+                          minHeight: "100px",
+                          borderRadius: "20px",
+                          padding: ".5rem",
+                        }}
+                        value={hexToString(params[0])}
+                      />
+                    </div>
+                  ) : (
+                    <div>
+                      <Text style={{ color: "var(--accent-10)", marginLeft: "1rem" }}>
+                        Typed Data:
+                      </Text>
+                      <EIP712Renderer data={params[1] as any} />
+                    </div>
+                  )}
                 </div>
               </Flex>
             </Flex>
