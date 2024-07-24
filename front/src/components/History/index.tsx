@@ -4,6 +4,7 @@ import { Button, Flex, Callout } from "@radix-ui/themes";
 import { useMe } from "@/providers/MeProvider";
 import { ArrowRightIcon } from "@radix-ui/react-icons";
 import LogoAnimatedLight from "../LogoAnimatedLight";
+import { CHAIN } from "@/constants";
 
 export default function History() {
   const { me } = useMe();
@@ -21,7 +22,7 @@ export default function History() {
           variant="outline"
           style={{ marginTop: ".3rem" }}
           onClick={() => {
-            window.open(`https://sepolia.etherscan.io/address/${me?.account}`, "_blank");
+            window.open(`${CHAIN.blockExplorers.default.url}/address/${me?.account}`, "_blank");
           }}
         >
           Browse history on etherscan

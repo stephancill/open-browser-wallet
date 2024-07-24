@@ -15,19 +15,22 @@ import {
   encodeAbiParameters,
   Address,
   zeroAddress,
+  hexToBigInt,
 } from "viem";
 import { UserOperationAsHex, UserOperation, Call } from "@/libs/smart-wallet/service/userOps/types";
 import { DEFAULT_USER_OP } from "@/libs/smart-wallet/service/userOps/constants";
 import { P256Credential, WebAuthn } from "@/libs/web-authn";
 import { ENTRYPOINT_ABI, ENTRYPOINT_ADDRESS, FACTORY_ABI } from "@/constants";
 import { smartWallet } from "@/libs/smart-wallet";
+import { CSW_FACTORY_ABI } from "@/constants/abi/CoinbaseSmartWalletFactory";
+import { getReplaySafeHash, getSmartWalletAddress } from "@/utils/smartWalletUtils";
 
 export class UserOpBuilder {
-  public relayer: Hex = "0x061060a65146b3265C62fC8f3AE977c9B27260fF";
+  public relayer: Hex;
   public entryPoint: Hex = ENTRYPOINT_ADDRESS;
   public chain: Chain;
   public publicClient: PublicClient;
-  public factoryContract: GetContractReturnType<typeof FACTORY_ABI, WalletClient, PublicClient>;
+  public factoryContract: GetContractReturnType<typeof CSW_FACTORY_ABI, WalletClient, PublicClient>;
 
   constructor(chain: Chain) {
     this.chain = chain;
@@ -36,6 +39,8 @@ export class UserOpBuilder {
       transport: http(),
     });
 
+    this.relayer = process.env.NEXT_PUBLIC_RELAYER_ADDRESS as Hex;
+
     const walletClient = createWalletClient({
       account: this.relayer,
       chain,
@@ -43,8 +48,8 @@ export class UserOpBuilder {
     });
 
     this.factoryContract = getContract({
-      address: process.env.NEXT_PUBLIC_FACTORY_CONTRACT_ADDRESS as Hex, // only on Sepolia
-      abi: FACTORY_ABI,
+      address: process.env.NEXT_PUBLIC_FACTORY_CONTRACT_ADDRESS as Hex,
+      abi: CSW_FACTORY_ABI,
       walletClient,
       publicClient: this.publicClient,
     });
@@ -55,15 +60,17 @@ export class UserOpBuilder {
     calls,
     maxFeePerGas,
     maxPriorityFeePerGas,
+    pubKey,
     keyId,
   }: {
     calls: Call[];
     maxFeePerGas: bigint;
     maxPriorityFeePerGas: bigint;
-    keyId: Hex;
+    pubKey: Hex;
+    keyId?: string;
   }): Promise<UserOperationAsHex> {
     // calculate smart wallet address via Factory contract to know the sender
-    const { account, publicKey } = await this._calculateSmartWalletAddress(keyId); // the keyId is the id tied to the user's public key
+    const account = await getSmartWalletAddress({ pubKey }); // the keyId is the id tied to the user's public key
 
     // get bytecode
     const bytecode = await this.publicClient.getBytecode({
@@ -75,7 +82,7 @@ export class UserOpBuilder {
     if (bytecode === undefined) {
       // smart wallet does NOT already exists
       // calculate initCode and initCodeGas
-      ({ initCode, initCodeGas } = await this._createInitCode(publicKey));
+      ({ initCode, initCodeGas } = await this._createInitCode(pubKey));
     }
 
     // calculate nonce
@@ -103,6 +110,8 @@ export class UserOpBuilder {
         userOp: this.toParams(userOp),
       });
 
+    userOp.signature = "0x";
+
     // set gas limits with the estimated values + some extra gas for safety
     userOp.callGasLimit = BigInt(callGasLimit);
     userOp.preVerificationGas = BigInt(preVerificationGas) * BigInt(10);
@@ -112,11 +121,8 @@ export class UserOpBuilder {
     // get userOp hash (with signature == 0x) by calling the entry point contract
     const userOpHash = await this._getUserOpHash(userOp);
 
-    // version = 1 and validUntil = 0 in msgToSign are hardcoded
-    const msgToSign = encodePacked(["uint8", "uint48", "bytes32"], [1, 0, userOpHash]);
-
     // get signature from webauthn
-    const signature = await this.getOpSignature(msgToSign, keyId);
+    const signature = await this.getOpSignature(userOpHash, keyId);
 
     return this.toParams({ ...userOp, signature });
   }
@@ -184,43 +190,61 @@ export class UserOpBuilder {
     );
   }
 
-  public async getSignature(msgToSign: Hex, keyId: Hex): Promise<Hex> {
-    const credentials: P256Credential = (await WebAuthn.get(msgToSign)) as P256Credential;
-
-    if (credentials.rawId !== keyId) {
-      throw new Error(
-        "Incorrect passkeys used for tx signing. Please sign the transaction with the correct logged-in account",
-      );
-    }
-
-    const signature = this.encodeSignature(credentials);
-    return signature;
-  }
-
-  public async getOpSignature(msgToSign: Hex, keyId: Hex): Promise<Hex> {
-    const credentials: P256Credential = (await WebAuthn.get(msgToSign)) as P256Credential;
-
-    if (credentials.rawId !== keyId) {
-      throw new Error(
-        "Incorrect passkeys used for tx signing. Please sign the transaction with the correct logged-in account",
-      );
-    }
-
-    const signature = encodePacked(
-      ["uint8", "uint48", "bytes"],
-      [1, 0, this.encodeSignature(credentials)],
+  wrapSignature(signature: Hex): Hex {
+    return encodeAbiParameters(
+      [
+        {
+          type: "tuple",
+          components: [
+            { type: "uint256", name: "ownerIndex" },
+            { type: "bytes", name: "signatureData" },
+          ],
+        },
+      ],
+      [
+        {
+          ownerIndex: BigInt(0), // TODO: Look up the owner index
+          signatureData: signature,
+        },
+      ],
     );
+  }
 
+  public async getSignature(msgToSign: Hex, address: Address, keyId?: string): Promise<Hex> {
+    const remoteReplaySafeMsgHash = await getReplaySafeHash({ hash: msgToSign, address });
+
+    const credentials: P256Credential = (await WebAuthn.get(
+      remoteReplaySafeMsgHash,
+    )) as P256Credential;
+
+    if (keyId && credentials.rawId !== keyId) {
+      throw new Error(
+        "Incorrect passkeys used for tx signing. Please sign the transaction with the correct logged-in account",
+      );
+    }
+
+    const signature = this.wrapSignature(this.encodeSignature(credentials));
     return signature;
   }
 
-  private async _createInitCode(
-    pubKey: readonly [Hex, Hex],
-  ): Promise<{ initCode: Hex; initCodeGas: bigint }> {
+  public async getOpSignature(msgToSign: Hex, keyId?: string): Promise<Hex> {
+    const credentials: P256Credential = (await WebAuthn.get(msgToSign)) as P256Credential;
+
+    if (keyId && credentials.rawId !== keyId) {
+      throw new Error(
+        "Incorrect passkeys used for tx signing. Please sign the transaction with the correct logged-in account",
+      );
+    }
+
+    const signature = this.wrapSignature(this.encodeSignature(credentials));
+    return signature;
+  }
+
+  private async _createInitCode(pubKey: Hex): Promise<{ initCode: Hex; initCodeGas: bigint }> {
     let createAccountTx = encodeFunctionData({
-      abi: FACTORY_ABI,
+      abi: CSW_FACTORY_ABI,
       functionName: "createAccount",
-      args: [pubKey],
+      args: [[pubKey], BigInt(0)],
     });
 
     let initCode = encodePacked(
@@ -229,7 +253,7 @@ export class UserOpBuilder {
     );
 
     let initCodeGas = await this.publicClient.estimateGas({
-      account: this.relayer,
+      account: zeroAddress,
       to: this.factoryContract.address,
       data: createAccountTx,
     });
@@ -238,13 +262,6 @@ export class UserOpBuilder {
       initCode,
       initCodeGas,
     };
-  }
-
-  private async _calculateSmartWalletAddress(
-    id: Hex,
-  ): Promise<{ account: Address; publicKey: readonly [Hex, Hex] }> {
-    const user = await this.factoryContract.read.getUser([BigInt(id)]);
-    return { account: user.account, publicKey: user.publicKey };
   }
 
   private _addCallData(calls: Call[]): Hex {

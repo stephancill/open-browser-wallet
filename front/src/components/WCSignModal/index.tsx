@@ -10,9 +10,20 @@ import {
 } from "@radix-ui/react-icons";
 import { Button, Callout, Flex, Heading, Link, Text, TextArea } from "@radix-ui/themes";
 import { useState } from "react";
-import { Chain, Hash, Hex, WalletRpcSchema, hashMessage, hashTypedData, hexToString } from "viem";
+import {
+  Address,
+  Chain,
+  Hash,
+  Hex,
+  WalletRpcSchema,
+  hashMessage,
+  hashTypedData,
+  hexToString,
+  zeroAddress,
+} from "viem";
 import Spinner from "../Spinner";
 import EIP712Renderer from "../EIP712Renderer";
+import { parseSignature } from "webauthn-p256";
 
 type SignSchemas = WalletRpcSchema[8] | WalletRpcSchema[10];
 
@@ -37,18 +48,21 @@ export default function WCSignModal({
     setIsLoading(true);
     setError(null);
     try {
-      if (!me?.keyId) throw new Error("No user found");
       const builder = new UserOpBuilder(smartWallet.client.chain as Chain);
       let hash: Hex;
-      console.log("message", hexToString(params[0]));
+      let address: Address;
       if (method === "personal_sign") {
         hash = hashMessage(hexToString(params[0]) as string);
+        address = params[1] as Address;
       } else if (method === "eth_signTypedData_v4") {
         hash = hashTypedData(params[1] as any);
+        address = params[0] as Address;
       } else {
         throw new Error("Unsupported method");
       }
-      const signature = await builder.getSignature(hash, me.keyId);
+
+      const signature = await builder.getSignature(hash, address, me?.keyId);
+
       setSignature(signature);
       onSuccess(signature);
     } catch (e: any) {
@@ -75,29 +89,17 @@ export default function WCSignModal({
           {true ? (
             <>
               <CheckCircledIcon height="32" width="100%" color="var(--teal-11)" />
-              <Link
-                href={`https://sepolia.etherscan.io/tx/${signature?.receipt?.transactionHash}`}
-                target="_blank"
-                style={{ textDecoration: "none" }}
-              >
-                <Flex direction="row" gap="2">
-                  <Text size="2">Message signed</Text>
-                </Flex>
-              </Link>
+              <Flex direction="row" gap="2">
+                <Text size="2">Message signed</Text>
+              </Flex>
             </>
           ) : (
             <>
               <CrossCircledIcon height="32" width="100%" />
-              <Link
-                href={`https://sepolia.etherscan.io/tx/${signature?.receipt?.transactionHash}`}
-                target="_blank"
-                style={{ textDecoration: "none" }}
-              >
-                <Flex direction="row" gap="2" style={{ color: "var(--gray-12)" }}>
-                  <Text size="2">Transaction reverted</Text>
-                  <ExternalLinkIcon style={{ alignSelf: "center" }} />
-                </Flex>
-              </Link>
+              <Flex direction="row" gap="2" style={{ color: "var(--gray-12)" }}>
+                <Text size="2">Signature rejected</Text>
+                <ExternalLinkIcon style={{ alignSelf: "center" }} />
+              </Flex>
             </>
           )}
         </Flex>

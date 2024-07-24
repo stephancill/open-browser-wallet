@@ -7,6 +7,7 @@ import {
   PublicClientConfig,
   PublicClient,
   createPublicClient,
+  http,
 } from "viem";
 import { SmartWalletActions, smartWalletActions } from "./decorators";
 import { transport } from "../config";

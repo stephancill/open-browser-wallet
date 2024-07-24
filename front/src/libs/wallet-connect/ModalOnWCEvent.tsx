@@ -5,7 +5,7 @@ import WCSendTransactionModal from "@/components/WCSendTransactionModal";
 import { useModal } from "@/providers/ModalProvider";
 import React, { useEffect } from "react";
 import { EthSendEventPayload, WCEvent, walletConnect } from "./service/wallet-connect";
-import WCSignModal from "../../components/WCSignModal";
+import WCSignModal from "@/components/WCSignModal";
 
 export function ModalOnWCEvent({ children }: { children: React.ReactNode }) {
   const { open } = useModal();

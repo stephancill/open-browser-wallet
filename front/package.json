@@ -11,6 +11,7 @@
   "dependencies": {
     "@emotion/react": "^11.11.4",
     "@emotion/styled": "^11.11.5",
+    "@noble/curves": "^1.4.2",
     "@peculiar/asn1-ecc": "2.3.6",
     "@peculiar/asn1-schema": "2.3.6",
     "@radix-ui/react-form": "^0.0.3",
@@ -33,7 +34,8 @@
     "react-dom": "^18.3.1",
     "react-qr-reader-es6": "2.2.1-2",
     "viem": "^1.21.4",
-    "wagmi": "^1.4.13"
+    "wagmi": "^1.4.13",
+    "webauthn-p256": "^0.0.5"
   },
   "devDependencies": {
     "@types/node": "^17.0.45",

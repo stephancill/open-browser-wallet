@@ -1,14 +1,12 @@
+import { CreateCredential, P256Credential, P256Signature } from "@/libs/web-authn/types";
+import { concatUint8Arrays } from "@/utils/arrayConcat";
+import { shouldRemoveLeadingZero } from "@/utils/removeLeadingZero";
+import { ECDSASigValue } from "@peculiar/asn1-ecc";
+import { AsnParser } from "@peculiar/asn1-schema";
+import { parseAuthenticatorData } from "@simplewebauthn/server/helpers";
+import cbor from "cbor";
 import crypto from "crypto";
 import { Hex, toHex } from "viem";
-import cbor from "cbor";
-import { parseAuthenticatorData } from "@simplewebauthn/server/helpers";
-import { AsnParser } from "@peculiar/asn1-schema";
-import { ECDSASigValue } from "@peculiar/asn1-ecc";
-import { concatUint8Arrays } from "@/utils/arrayConcat";
-import { CreateCredential, P256Credential, P256Signature } from "@/libs/web-authn/types";
-import { shouldRemoveLeadingZero } from "@/utils/removeLeadingZero";
-import { startRegistration } from "@simplewebauthn/browser";
-import { generateRegistrationOptions } from "@simplewebauthn/server";
 
 export * from "@/libs/web-authn/types";
 

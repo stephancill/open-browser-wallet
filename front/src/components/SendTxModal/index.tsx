@@ -14,7 +14,7 @@ import {
 } from "@radix-ui/react-icons";
 import { useMe } from "@/providers/MeProvider";
 import Spinner from "../Spinner";
-import { MAINNET_PUBLIC_CLIENT } from "@/constants";
+import { CHAIN, MAINNET_PUBLIC_CLIENT } from "@/constants";
 import { normalize } from "viem/ens";
 
 smartWallet.init();
@@ -29,7 +29,7 @@ export default function SendTxModal() {
   const [isBelowBalance, setIsBelowBalance] = useState(false);
   const [ensIsLoading, setEnsIsLoading] = useState(false);
   const [destination, setDestination] = useState("");
-  const { me } = useMe();
+  const { me, get } = useMe();
   const { balance, refreshBalance } = useBalance();
 
   const addressInputRef = useRef<HTMLInputElement>(null);
@@ -53,13 +53,13 @@ export default function SendTxModal() {
 
   function handleUserInputAmount(e: any) {
     const value = e.target.value;
-    const amount = Number(value);
-    if ((amount > Number(balance) && value !== "") || value === "") {
-      setIsBelowBalance(false);
-    }
-    if (amount <= Number(balance) && value !== "") {
-      setIsBelowBalance(true);
-    }
+    // const amount = Number(value);
+    // if ((amount > Number(balance) && value !== "") || value === "") {
+    //   setIsBelowBalance(false);
+    // }
+    // if (amount <= Number(balance) && value !== "") {
+    //   setIsBelowBalance(true);
+    // }
     setUserInputAmount(value);
   }
 
@@ -106,6 +106,15 @@ export default function SendTxModal() {
     e.preventDefault();
 
     try {
+      let user = me;
+      if (!user?.pubKey) {
+        user = await get();
+      }
+
+      if (!user?.pubKey) {
+        throw new Error("User not found");
+      }
+
       const price: { ethereum: { usd: number } } = await (
         await fetch("/api/price?ids=ethereum&currencies=usd")
       ).json();
@@ -124,7 +133,8 @@ export default function SendTxModal() {
         ],
         maxFeePerGas: maxFeePerGas as bigint,
         maxPriorityFeePerGas: maxPriorityFeePerGas as bigint,
-        keyId: me?.keyId as Hex,
+        keyId: user.keyId as Hex,
+        pubKey: user.pubKey as Hex,
       });
       const hash = await smartWallet.sendUserOperation({ userOp });
       const receipt = await smartWallet.waitForUserOperationReceipt({ hash });
@@ -154,7 +164,7 @@ export default function SendTxModal() {
             <>
               <CheckCircledIcon height="32" width="100%" color="var(--teal-11)" />
               <Link
-                href={`https://sepolia.etherscan.io/tx/${txReceipt?.receipt?.transactionHash}`}
+                href={`${CHAIN.blockExplorers.default.url}/tx/${txReceipt?.receipt?.transactionHash}`}
                 target="_blank"
                 style={{ textDecoration: "none" }}
               >
@@ -168,7 +178,7 @@ export default function SendTxModal() {
             <>
               <CrossCircledIcon height="32" width="100%" />
               <Link
-                href={`https://sepolia.etherscan.io/tx/${txReceipt?.receipt?.transactionHash}`}
+                href={`${CHAIN.blockExplorers.default.url}/tx/${txReceipt?.receipt?.transactionHash}`}
                 target="_blank"
                 style={{ textDecoration: "none" }}
               >
@@ -257,7 +267,7 @@ export default function SendTxModal() {
                         type="number"
                         inputMode="decimal"
                         min={0}
-                        max={balance?.toString() || 0}
+                        // max={balance?.toString() || 0}
                         size={"3"}
                         step={0.01}
                         value={userInputAmount}

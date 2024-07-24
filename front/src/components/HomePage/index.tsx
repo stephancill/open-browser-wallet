@@ -7,7 +7,7 @@ import Balance from "../Balance";
 import NavBar from "../NavBar";
 import History from "../History";
 import TopBar from "../TopBar";
-import LogoAnimated from "../LogoAnimated";
+import { smartWallet } from "@/libs/smart-wallet";
 
 export default function Home() {
   const { me, isMounted } = useMe();
@@ -18,7 +18,7 @@ export default function Home() {
     return (
       <Flex direction="column" width="100%" justify={"between"}>
         <Flex direction="column" width="100%">
-          <TopBar />
+          <TopBar chainId={smartWallet.client.chain?.id} />
           <Balance />
           <NavBar />
         </Flex>

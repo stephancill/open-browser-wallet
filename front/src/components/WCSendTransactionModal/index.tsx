@@ -13,7 +13,7 @@ import { Chain, Hash, formatEther } from "viem";
 import { useMe } from "@/providers/MeProvider";
 import { useBalance } from "@/providers/BalanceProvider";
 import { EthSendTransactionParams } from "@/libs/wallet-connect/config/EIP155";
-import { MAINNET_PUBLIC_CLIENT } from "@/constants";
+import { CHAIN, MAINNET_PUBLIC_CLIENT } from "@/constants";
 import { normalize } from "viem/ens";
 
 type Props = {
@@ -28,7 +28,7 @@ export default function WCSendTransactionModal({ params, origin, onSuccess }: Pr
   const [destination, setDestination] = useState<string>("");
   const [ensIsLoading, setEnsIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<any>(null);
-  const { me } = useMe();
+  const { me, get } = useMe();
   const { refreshBalance } = useBalance();
 
   useEffect(() => {
@@ -65,7 +65,15 @@ export default function WCSendTransactionModal({ params, origin, onSuccess }: Pr
     setIsLoading(true);
     setError(null);
     try {
-      if (!me?.keyId) throw new Error("No user found");
+      let user = me;
+      if (!user?.pubKey) {
+        user = await get();
+      }
+
+      if (!user?.pubKey) {
+        throw new Error("User not found");
+      }
+
       const builder = new UserOpBuilder(smartWallet.client.chain as Chain);
       const { maxFeePerGas, maxPriorityFeePerGas } = await smartWallet.client.estimateFeesPerGas();
 
@@ -82,7 +90,8 @@ export default function WCSendTransactionModal({ params, origin, onSuccess }: Pr
         ],
         maxFeePerGas: maxFeePerGas as bigint,
         maxPriorityFeePerGas: maxPriorityFeePerGas as bigint,
-        keyId: me.keyId,
+        pubKey: user.pubKey,
+        keyId: user.keyId,
       });
 
       const hash = await smartWallet.sendUserOperation({ userOp });
@@ -114,7 +123,7 @@ export default function WCSendTransactionModal({ params, origin, onSuccess }: Pr
             <>
               <CheckCircledIcon height="32" width="100%" color="var(--teal-11)" />
               <Link
-                href={`https://sepolia.etherscan.io/tx/${txReceipt?.receipt?.transactionHash}`}
+                href={`${CHAIN.blockExplorers.default.url}/tx/${txReceipt?.receipt?.transactionHash}`}
                 target="_blank"
                 style={{ textDecoration: "none" }}
               >
@@ -128,7 +137,7 @@ export default function WCSendTransactionModal({ params, origin, onSuccess }: Pr
             <>
               <CrossCircledIcon height="32" width="100%" />
               <Link
-                href={`https://sepolia.etherscan.io/tx/${txReceipt?.receipt?.transactionHash}`}
+                href={`${CHAIN.blockExplorers.default.url}/${txReceipt?.receipt?.transactionHash}`}
                 target="_blank"
                 style={{ textDecoration: "none" }}
               >

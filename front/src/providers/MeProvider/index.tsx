@@ -1,19 +1,17 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState } from "react";
-import { Address, Hex, zeroAddress } from "viem";
-import { WebAuthn } from "@/libs/web-authn/service/web-authn";
 import { saveUser } from "@/libs/factory";
 import { getUser } from "@/libs/factory/getUser";
 import { walletConnect } from "@/libs/wallet-connect/service/wallet-connect";
+import { getMessageHash, recoverPublicKey } from "@/utils/webauthn";
+import { createContext, useContext, useEffect, useState } from "react";
+import { Address, bytesToHex, hashMessage, Hex, zeroAddress } from "viem";
+import { createCredential, sign } from "webauthn-p256";
 
 export type Me = {
   account: Address;
-  keyId: Hex;
-  pubKey: {
-    x: Hex;
-    y: Hex;
-  };
+  keyId: string;
+  pubKey: Hex;
 };
 
 function useMeHook() {
@@ -30,18 +28,18 @@ function useMeHook() {
   async function create(username: string) {
     setIsLoading(true);
     try {
-      const credential = await WebAuthn.create({ username });
+      const credential = await createCredential({ name: username });
 
       if (!credential) {
         return;
       }
       const user = await saveUser({
-        id: credential.rawId,
-        pubKey: credential.pubKey,
+        id: credential.id,
+        pubKey: credential.publicKey,
       });
 
       const me = {
-        keyId: user.id as Hex,
+        keyId: user.id,
         pubKey: user.pubKey,
         account: user.account,
       };
@@ -65,11 +63,31 @@ function useMeHook() {
   async function get() {
     setIsLoading(true);
     try {
-      const credential = await WebAuthn.get();
-      if (!credential) {
-        return;
+      const message1 = hashMessage(
+        bytesToHex(Uint8Array.from("random-challenge1", (c) => c.charCodeAt(0))),
+      );
+      const { signature: signature1, webauthn: webauthn1 } = await sign({ hash: message1 });
+
+      const message2 = hashMessage(
+        bytesToHex(Uint8Array.from("random-challenge2", (c) => c.charCodeAt(0))),
+      );
+      const { signature: signature2, webauthn: webauthn2 } = await sign({
+        hash: message2,
+      });
+
+      const messageHash1 = await getMessageHash(webauthn1);
+      const messageHash2 = await getMessageHash(webauthn2);
+
+      const recoveryResult = recoverPublicKey([
+        { messageHash: messageHash1, signatureHex: signature1 },
+        { messageHash: messageHash2, signatureHex: signature2 },
+      ]);
+
+      if (!recoveryResult) {
+        throw new Error("recovery failed");
       }
-      const user = await getUser(credential.rawId);
+
+      const user = await getUser(recoveryResult);
 
       if (user?.account === undefined || user?.account === zeroAddress) {
         throw new Error("user not found");

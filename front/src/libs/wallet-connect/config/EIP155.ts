@@ -55,6 +55,14 @@ export const EIP155_MAINNET_CHAINS: WCChains = {
   //   rpc: "https://mainnet.era.zksync.io/",
   //   namespace: "eip155",
   // },
+  "eip155:8453": {
+    chainId: 8453,
+    name: "Base",
+    logo: "/chain-logos/eip155-100.png",
+    rgb: "0, 0, 255",
+    rpc: "https://mainnet.base.org	",
+    namespace: "eip155",
+  },
 };
 
 export const EIP155_TEST_CHAINS = {

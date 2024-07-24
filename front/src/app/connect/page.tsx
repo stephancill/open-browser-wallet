@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { walletConnect } from "../../libs/wallet-connect/service/wallet-connect";
-import { useMe } from "../../providers/MeProvider";
-import { SCWKeyManager } from "../../utils/SCWKeyManager";
+import { walletConnect } from "@/libs/wallet-connect/service/wallet-connect";
+import { useMe } from "@/providers/MeProvider";
+import { SCWKeyManager } from "@/utils/SCWKeyManager";
 import {
   decryptContent,
   encryptContent,
@@ -11,8 +11,8 @@ import {
   importKeyFromHexString,
   RPCRequest,
   RPCResponse,
-} from "../../utils/cipher";
-import { smartWallet } from "../../libs/smart-wallet";
+} from "@/utils/cipher";
+import { smartWallet } from "@/libs/smart-wallet";
 
 const keyManager = new SCWKeyManager();
 
