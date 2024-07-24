@@ -26,7 +26,6 @@ import { CSW_FACTORY_ABI } from "@/constants/abi/CoinbaseSmartWalletFactory";
 import { getReplaySafeHash, getSmartWalletAddress } from "@/utils/smartWalletUtils";
 
 export class UserOpBuilder {
-  public relayer: Hex;
   public entryPoint: Hex = ENTRYPOINT_ADDRESS;
   public chain: Chain;
   public publicClient: PublicClient;
@@ -39,18 +38,9 @@ export class UserOpBuilder {
       transport: http(),
     });
 
-    this.relayer = process.env.NEXT_PUBLIC_RELAYER_ADDRESS as Hex;
-
-    const walletClient = createWalletClient({
-      account: this.relayer,
-      chain,
-      transport: http(),
-    });
-
     this.factoryContract = getContract({
       address: process.env.NEXT_PUBLIC_FACTORY_CONTRACT_ADDRESS as Hex,
       abi: CSW_FACTORY_ABI,
-      walletClient,
       publicClient: this.publicClient,
     });
   }
