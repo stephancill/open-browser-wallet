@@ -1,1 +1,0 @@
-# forge script DeploySimpleAccountFactory --private-key $PRIVATE_KEY --rpc-url https://goerli.base.org/ --etherscan-api-key $ETHERSCAN_API_KEY --verify --slow --broadcast

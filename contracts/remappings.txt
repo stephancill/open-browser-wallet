@@ -1,3 +1,0 @@
-p256-verifier/=lib/p256-verifier/src/
-account-abstraction/=lib/account-abstraction/contracts/
-@openzeppelin/contracts/=lib/openzeppelin-contracts/contracts/
