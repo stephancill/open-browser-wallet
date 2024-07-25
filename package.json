@@ -35,7 +35,8 @@
     "react-qr-reader-es6": "2.2.1-2",
     "viem": "^1.21.4",
     "wagmi": "^1.4.13",
-    "webauthn-p256": "^0.0.5"
+    "webauthn-p256": "^0.0.5",
+    "viem2": "npm:viem@2.x"
   },
   "devDependencies": {
     "@types/node": "^17.0.45",

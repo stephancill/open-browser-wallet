@@ -1,50 +1,87 @@
 import { concatBytes, utf8ToBytes } from "@noble/curves/abstract/utils";
 import { secp256r1 } from "@noble/curves/p256";
-import { Hex, hexToBytes } from "viem";
-import { bytesToHex, parseSignature, serializePublicKey } from "webauthn-p256";
+import { hashMessage, Hex, hexToBytes } from "viem";
+import { bytesToHex, parseSignature, serializePublicKey, sign, WebAuthnData } from "webauthn-p256";
+import { LOCAL_STORAGE_KEY_PUBKEYS } from "../libs/smart-wallet/service/userOps";
 
-type Point = { signatureHex: Hex; messageHash: Hex };
+type SignatureAndMessage = { signatureHex: Hex; messageHash: Hex };
 
-export function recoverPublicKey([point1, point2]: [Point, Point]): Hex | undefined {
-  const signatureParsed1 = parseSignature(point1.signatureHex);
-  const candidate1 = new secp256r1.Signature(signatureParsed1.r, signatureParsed1.s)
-    .addRecoveryBit(1)
-    .recoverPublicKey(point1.messageHash.slice(2));
-  const candidate2 = new secp256r1.Signature(signatureParsed1.r, signatureParsed1.s)
-    .addRecoveryBit(0)
-    .recoverPublicKey(point1.messageHash.slice(2));
-
-  const signatureParsed2 = parseSignature(point2.signatureHex);
-  const candidate3 = new secp256r1.Signature(signatureParsed2.r, signatureParsed2.s)
-    .addRecoveryBit(1)
-    .recoverPublicKey(point2.messageHash.slice(2));
-  const candidate4 = new secp256r1.Signature(signatureParsed2.r, signatureParsed2.s)
-    .addRecoveryBit(0)
-    .recoverPublicKey(point2.messageHash.slice(2));
-
-  const candidates = [
-    serializePublicKey(candidate1),
-    serializePublicKey(candidate3),
-    serializePublicKey(candidate2),
-    serializePublicKey(candidate4),
-  ];
-
-  // Return the candidate that occurs twice in the list
-  return firstDuplicate(candidates);
+/**
+ * Finds the candidate public keys for two pairs of signatures and messages and returns the correct one.
+ * @param param0 Signature and message pairs
+ * @returns The recovered public key or undefined if the public key could not be recovered
+ */
+function recoverPublicKey([input1, input2]: [SignatureAndMessage, SignatureAndMessage]):
+  | Hex
+  | undefined {
+  // Return the candidate public key that appears twice
+  return firstDuplicate([...getCandidatePublicKeys(input1), ...getCandidatePublicKeys(input2)]);
 }
 
-function firstDuplicate<T>(arr: T[]): T | undefined {
-  const seen = new Set<T>();
-  for (const s of arr) {
-    if (seen.has(s)) {
-      return s;
-    }
-    seen.add(s);
+/**
+ * Returns the two candidate public keys for a given signature and message.
+ * @param input Signature and message pair
+ * @returns The two candidate public keys
+ */
+function getCandidatePublicKeys(input: SignatureAndMessage) {
+  const signatureParsed = parseSignature(input.signatureHex);
+  const candidate1 = new secp256r1.Signature(signatureParsed.r, signatureParsed.s)
+    .addRecoveryBit(1)
+    .recoverPublicKey(input.messageHash.slice(2));
+  const candidate2 = new secp256r1.Signature(signatureParsed.r, signatureParsed.s)
+    .addRecoveryBit(0)
+    .recoverPublicKey(input.messageHash.slice(2));
+
+  return [serializePublicKey(candidate1), serializePublicKey(candidate2)];
+}
+
+/**
+ * Recovers the public key from a signature and message pair by requesting an additional signature and caches it in local storage.
+ * @param input Signature and message pair
+ * @returns The recovered public key or undefined if the public key could not be recovered
+ */
+export async function recoverPublicKeyWithCache(input: SignatureAndMessage) {
+  const [candidate1, candidate2] = getCandidatePublicKeys(input);
+
+  // Check if the public key is in the local storage
+  const savedKeys = JSON.parse(localStorage.getItem(LOCAL_STORAGE_KEY_PUBKEYS) || "{}");
+  if (savedKeys[candidate1]) return candidate1;
+  if (savedKeys[candidate2]) return candidate2;
+
+  const randomChallenge = bytesToHex(
+    Uint8Array.from(Math.random().toString(), (c) => c.charCodeAt(0)),
+  );
+  const message2 = hashMessage(randomChallenge);
+  const { signature: signature2, webauthn: webauthn2 } = await sign({
+    hash: message2,
+  });
+  const messageHash2 = await getMessageHash(webauthn2);
+
+  const publicKey = recoverPublicKey([
+    input,
+    { signatureHex: signature2, messageHash: messageHash2 },
+  ]);
+
+  if (publicKey) {
+    // Save key to local storage
+    savedKeys[publicKey] = true;
+    localStorage.setItem(LOCAL_STORAGE_KEY_PUBKEYS, JSON.stringify(savedKeys));
   }
-  return undefined; // If no duplicates found
+
+  return publicKey;
 }
 
-export async function getMessageHash(webauthn: any): Promise<Hex | never> {
+/**
+ * Returns the message hash from a WebAuthn object.
+ * @param webauthn Response from WebAuthn API
+ * @returns The message hash
+ */
+export async function getMessageHash(
+  webauthn: Omit<WebAuthnData, "typeIndex" | "challengeIndex"> & {
+    challengeIndex?: number;
+    typeIndex?: number;
+  },
+): Promise<Hex | never> {
   const {
     authenticatorData,
     challengeIndex: challengeIndexRaw,
@@ -100,4 +137,15 @@ export async function getMessageHash(webauthn: any): Promise<Hex | never> {
   );
 
   return bytesToHex(messageHash);
+}
+
+function firstDuplicate<T>(arr: T[]): T | undefined {
+  const seen = new Set<T>();
+  for (const s of arr) {
+    if (seen.has(s)) {
+      return s;
+    }
+    seen.add(s);
+  }
+  return undefined; // If no duplicates found
 }

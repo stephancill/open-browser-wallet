@@ -1,6 +1,8 @@
 import { UserOperation } from "@/libs/smart-wallet/service/userOps/types";
 import { bytesToHex, encodeAbiParameters, parseAbiParameters, toHex, zeroAddress } from "viem";
 
+export const LOCAL_STORAGE_KEY_PUBKEYS = "passkeys4337.pubkeys";
+
 export const DEFAULT_CALL_GAS_LIMIT = BigInt(200_000);
 export const DEFAULT_VERIFICATION_GAS_LIMIT = BigInt(2_000_000); // 2M
 export const DEFAULT_PRE_VERIFICATION_GAS = BigInt(80_000); //65000

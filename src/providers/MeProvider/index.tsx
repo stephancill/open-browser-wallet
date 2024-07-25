@@ -3,7 +3,7 @@
 import { saveUser } from "@/libs/factory";
 import { getUser } from "@/libs/factory/getUser";
 import { walletConnect } from "@/libs/wallet-connect/service/wallet-connect";
-import { getMessageHash, recoverPublicKey } from "@/utils/webauthn";
+import { getMessageHash, recoverPublicKeyWithCache } from "@/utils/webauthn";
 import { createContext, useContext, useEffect, useState } from "react";
 import { Address, bytesToHex, hashMessage, Hex, zeroAddress } from "viem";
 import { createCredential, sign } from "webauthn-p256";
@@ -67,27 +67,18 @@ function useMeHook() {
         bytesToHex(Uint8Array.from("random-challenge1", (c) => c.charCodeAt(0))),
       );
       const { signature: signature1, webauthn: webauthn1 } = await sign({ hash: message1 });
+      const messageHash1 = await getMessageHash(webauthn1);
 
-      const message2 = hashMessage(
-        bytesToHex(Uint8Array.from("random-challenge2", (c) => c.charCodeAt(0))),
-      );
-      const { signature: signature2, webauthn: webauthn2 } = await sign({
-        hash: message2,
+      const publicKey = await recoverPublicKeyWithCache({
+        messageHash: messageHash1,
+        signatureHex: signature1,
       });
 
-      const messageHash1 = await getMessageHash(webauthn1);
-      const messageHash2 = await getMessageHash(webauthn2);
-
-      const recoveryResult = recoverPublicKey([
-        { messageHash: messageHash1, signatureHex: signature1 },
-        { messageHash: messageHash2, signatureHex: signature2 },
-      ]);
-
-      if (!recoveryResult) {
+      if (!publicKey) {
         throw new Error("recovery failed");
       }
 
-      const user = await getUser(recoveryResult);
+      const user = await getUser(publicKey);
 
       if (user?.account === undefined || user?.account === zeroAddress) {
         throw new Error("user not found");

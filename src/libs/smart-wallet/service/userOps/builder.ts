@@ -1,29 +1,32 @@
+import { ENTRYPOINT_ABI, ENTRYPOINT_ADDRESS } from "@/constants";
+import { CSW_FACTORY_ABI } from "@/constants/abi/CoinbaseSmartWalletFactory";
+import { smartWallet } from "@/libs/smart-wallet";
+import { DEFAULT_USER_OP } from "@/libs/smart-wallet/service/userOps/constants";
+import { Call, UserOperation, UserOperationAsHex } from "@/libs/smart-wallet/service/userOps/types";
+import { P256Credential, WebAuthn } from "@/libs/web-authn";
+import { getSmartWalletAddress } from "@/utils/smartWalletUtils";
 import {
+  Address,
   Chain,
   GetContractReturnType,
   Hex,
   PublicClient,
   WalletClient,
   createPublicClient,
-  createWalletClient,
+  encodeAbiParameters,
   encodeFunctionData,
   encodePacked,
   getContract,
+  hexToBigInt,
   http,
   parseAbi,
   toHex,
-  encodeAbiParameters,
-  Address,
   zeroAddress,
-  hexToBigInt,
 } from "viem";
-import { UserOperationAsHex, UserOperation, Call } from "@/libs/smart-wallet/service/userOps/types";
-import { DEFAULT_USER_OP } from "@/libs/smart-wallet/service/userOps/constants";
-import { P256Credential, WebAuthn } from "@/libs/web-authn";
-import { ENTRYPOINT_ABI, ENTRYPOINT_ADDRESS, FACTORY_ABI } from "@/constants";
-import { smartWallet } from "@/libs/smart-wallet";
-import { CSW_FACTORY_ABI } from "@/constants/abi/CoinbaseSmartWalletFactory";
-import { getReplaySafeHash, getSmartWalletAddress } from "@/utils/smartWalletUtils";
+import { serializeErc6492Signature } from "viem2";
+import { serializeSignature } from "webauthn-p256";
+import { calculateReplaySafeHash } from "../../../../utils/replaySafeHash";
+import { getMessageHash, recoverPublicKeyWithCache } from "../../../../utils/webauthn";
 
 export class UserOpBuilder {
   public entryPoint: Hex = ENTRYPOINT_ADDRESS;
@@ -72,7 +75,7 @@ export class UserOpBuilder {
     if (bytecode === undefined) {
       // smart wallet does NOT already exists
       // calculate initCode and initCodeGas
-      ({ initCode, initCodeGas } = await this._createInitCode(pubKey));
+      ({ initCode, initCodeGas } = await this.createInitCodeEstimateGas(pubKey));
     }
 
     // calculate nonce
@@ -201,11 +204,9 @@ export class UserOpBuilder {
   }
 
   public async getSignature(msgToSign: Hex, address: Address, keyId?: string): Promise<Hex> {
-    const remoteReplaySafeMsgHash = await getReplaySafeHash({ hash: msgToSign, address });
+    const replaySafeHash = calculateReplaySafeHash(msgToSign, BigInt(this.chain.id), address);
 
-    const credentials: P256Credential = (await WebAuthn.get(
-      remoteReplaySafeMsgHash,
-    )) as P256Credential;
+    const credentials: P256Credential = (await WebAuthn.get(replaySafeHash)) as P256Credential;
 
     if (keyId && credentials.rawId !== keyId) {
       throw new Error(
@@ -213,8 +214,41 @@ export class UserOpBuilder {
       );
     }
 
-    const signature = this.wrapSignature(this.encodeSignature(credentials));
-    return signature;
+    const wrappedSignature = this.wrapSignature(this.encodeSignature(credentials));
+
+    const code = await this.publicClient.getBytecode({
+      address: address,
+    });
+
+    if (!code) {
+      // Contract not deployed yet, generate ERC-6492 signature
+      console.log("Contract not deployed yet, generating ERC-6492 signature");
+      const publicKey = await recoverPublicKeyWithCache({
+        messageHash: await getMessageHash({
+          authenticatorData: credentials.authenticatorData,
+          clientDataJSON: JSON.stringify(credentials.clientData),
+          userVerificationRequired: false,
+        }),
+        signatureHex: serializeSignature({
+          r: hexToBigInt(credentials.signature.r),
+          s: hexToBigInt(credentials.signature.s),
+        }),
+      });
+      if (!publicKey) {
+        throw new Error("Invalid signature");
+      }
+      const data = this.getCreateAccountTx(publicKey);
+
+      const erc6492Signature = serializeErc6492Signature({
+        address: this.factoryContract.address,
+        data,
+        signature: wrappedSignature,
+      });
+
+      return erc6492Signature;
+    }
+
+    return wrappedSignature;
   }
 
   public async getOpSignature(msgToSign: Hex, keyId?: string): Promise<Hex> {
@@ -230,17 +264,31 @@ export class UserOpBuilder {
     return signature;
   }
 
-  private async _createInitCode(pubKey: Hex): Promise<{ initCode: Hex; initCodeGas: bigint }> {
-    let createAccountTx = encodeFunctionData({
+  private getCreateAccountTx(pubKey: Hex): Hex {
+    const createAccountTx = encodeFunctionData({
       abi: CSW_FACTORY_ABI,
       functionName: "createAccount",
       args: [[pubKey], BigInt(0)],
     });
+    return createAccountTx;
+  }
+
+  private createInitCode(pubKey: Hex): Hex {
+    let createAccountTx = this.getCreateAccountTx(pubKey);
 
     let initCode = encodePacked(
       ["address", "bytes"], // types
       [this.factoryContract.address, createAccountTx], // values
     );
+
+    return initCode;
+  }
+
+  private async createInitCodeEstimateGas(
+    pubKey: Hex,
+  ): Promise<{ initCode: Hex; initCodeGas: bigint }> {
+    let createAccountTx = this.getCreateAccountTx(pubKey);
+    let initCode = this.createInitCode(pubKey);
 
     let initCodeGas = await this.publicClient.estimateGas({
       account: zeroAddress,
