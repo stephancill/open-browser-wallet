@@ -51,8 +51,7 @@ export default function Page() {
     window.addEventListener(
       "message",
       async function (m) {
-        //message was received
-        if (m.origin !== "http://localhost:3001") {
+        if (m.source !== this.window.opener) {
           return;
         }
         console.log("message received", m.origin, m.data);
