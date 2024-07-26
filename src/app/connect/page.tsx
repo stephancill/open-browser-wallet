@@ -40,6 +40,7 @@ function closePopup() {
   if (process.env.NODE_ENV === "development") {
     return;
   }
+  window.opener.postMessage("PopupUnload", "*");
   const parent = window.self;
   parent.opener = window.self;
   parent.close();
@@ -71,11 +72,12 @@ export default function Page() {
           messageToAppend.content.decrypted = decrypted;
         }
 
-        setMessages((prev) => [...prev, messageToAppend]);
+        const messagesToAppend = [messageToAppend];
 
         if (m.data.event === "selectSignerType") {
-          window.opener.postMessage({ requestId: m.data.id, data: "scw" }, "*");
-          console.log("Responded", { requestId: m.data.id, data: "scw" });
+          const message = { requestId: m.data.id, data: "scw" };
+          window.opener.postMessage(message, "*");
+          messagesToAppend.push({ ...message, response: true });
         } else if (m.data.content?.handshake?.method === "eth_requestAccounts") {
           const peerPublicKey = await importKeyFromHexString("public", m.data.sender);
           await keyManager.setPeerPublicKey(peerPublicKey);
@@ -87,11 +89,13 @@ export default function Page() {
           }
 
           const message = {
-            result: { value: accountResult?.account },
+            result: { value: [accountResult?.account] },
             data: {
               chains,
             },
           };
+
+          messagesToAppend.push({ ...message, response: true });
           await sendEncryptedMessage({
             id: m.data.id,
             content: message,
@@ -115,6 +119,8 @@ export default function Page() {
             result: { value: result },
           };
 
+          messagesToAppend.push({ ...message, response: true });
+
           await sendEncryptedMessage({
             id: m.data.id,
             content: message,
@@ -124,17 +130,25 @@ export default function Page() {
             closePopup();
           }
         }
+
+        setMessages((prev) => [...prev, ...messagesToAppend]);
       },
       false,
     );
 
-    window.opener.postMessage({ event: "PopupLoaded" }, "*");
+    const message = { event: "PopupLoaded" };
+    window.opener.postMessage(message, "*");
+    setMessages([{ ...message, response: true }]);
   }, [setMessages]);
 
   return (
     <div className="overflow-scroll">
       {messages.map((message, index) => {
-        return <div key={index}>{JSON.stringify(message)}</div>;
+        return (
+          <div key={index}>
+            {message.response ? "Response: " : ""} {JSON.stringify(message)}
+          </div>
+        );
       })}
     </div>
   );
