@@ -24,9 +24,9 @@ export const ALL_CHAINS: WCChains = {
 export const WC_CONFIG: IWalletConnectConfig = {
   projectId: "e8a450d0a41ce09a38c37ed5c6df736b",
   metadata: {
-    name: "Cacao",
-    description: "Cacao Wallet",
-    url: "https://hocuspocusxyz-k7vf.vercel.app/",
-    icons: ["https://avatars.githubusercontent.com/u/37784886"],
+    name: "Open Browser Wallet",
+    description: "An open passkey-based browser wallet similar to keys.coinbase.com",
+    url: "https://github.com/stephancill/open-browser-wallet",
+    icons: [],
   },
 };
