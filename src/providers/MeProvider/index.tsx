@@ -3,7 +3,7 @@
 import { saveUser } from "@/libs/factory";
 import { getUser } from "@/libs/factory/getUser";
 import { walletConnect } from "@/libs/wallet-connect/service/wallet-connect";
-import { getMessageHash, recoverPublicKeyWithCache } from "@/utils/webauthn";
+import { getMessageHash, recoverPublicKeyWithCache } from "@/utils/crypto";
 import { createContext, useContext, useEffect, useState } from "react";
 import { Address, bytesToHex, hashMessage, Hex, zeroAddress } from "viem";
 import { createCredential, sign } from "webauthn-p256";

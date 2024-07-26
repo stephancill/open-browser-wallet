@@ -24,8 +24,8 @@ import {
 } from "viem";
 import { serializeErc6492Signature } from "viem2";
 import { parseSignature, sign } from "webauthn-p256";
-import { calculateReplaySafeHash } from "../../../../utils/replaySafeHash";
-import { getMessageHash, recoverPublicKeyWithCache } from "../../../../utils/webauthn";
+import { calculateReplaySafeHash } from "@/utils/replaySafeHash";
+import { getMessageHash, recoverPublicKeyWithCache } from "@/utils/crypto";
 
 export class UserOpBuilder {
   public entryPoint: Hex = ENTRYPOINT_ADDRESS;

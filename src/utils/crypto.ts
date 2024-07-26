@@ -84,6 +84,7 @@ function cachePublicKey(publicKey: Hex) {
 
 /**
  * Returns the message hash from a WebAuthn object.
+ * Source: webauthn-p256/verify.ts
  * @param webauthn Response from WebAuthn API
  * @returns The message hash
  */
