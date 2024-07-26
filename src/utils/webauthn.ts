@@ -45,8 +45,8 @@ export async function recoverPublicKeyWithCache(input: SignatureAndMessage) {
 
   // Check if the public key is in the local storage
   const savedKeys = JSON.parse(localStorage.getItem(LOCAL_STORAGE_KEY_PUBKEYS) || "{}");
-  if (savedKeys[candidate1]) return candidate1;
-  if (savedKeys[candidate2]) return candidate2;
+  if (isPublicKeyCached(candidate1)) return candidate1;
+  if (isPublicKeyCached(candidate2)) return candidate2;
 
   const randomChallenge = bytesToHex(
     Uint8Array.from(Math.random().toString(), (c) => c.charCodeAt(0)),
@@ -64,11 +64,22 @@ export async function recoverPublicKeyWithCache(input: SignatureAndMessage) {
 
   if (publicKey) {
     // Save key to local storage
-    savedKeys[publicKey] = true;
-    localStorage.setItem(LOCAL_STORAGE_KEY_PUBKEYS, JSON.stringify(savedKeys));
+    cachePublicKey(publicKey);
   }
 
   return publicKey;
+}
+
+function isPublicKeyCached(publicKey: Hex) {
+  const savedKeys = JSON.parse(localStorage.getItem(LOCAL_STORAGE_KEY_PUBKEYS) || "{}");
+  if (savedKeys[publicKey]) console.log("cached", publicKey);
+  return savedKeys[publicKey];
+}
+
+function cachePublicKey(publicKey: Hex) {
+  const savedKeys = JSON.parse(localStorage.getItem(LOCAL_STORAGE_KEY_PUBKEYS) || "{}");
+  savedKeys[publicKey] = true;
+  localStorage.setItem(LOCAL_STORAGE_KEY_PUBKEYS, JSON.stringify(savedKeys));
 }
 
 /**

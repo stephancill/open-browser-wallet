@@ -3,7 +3,6 @@ import { CSW_FACTORY_ABI } from "@/constants/abi/CoinbaseSmartWalletFactory";
 import { smartWallet } from "@/libs/smart-wallet";
 import { DEFAULT_USER_OP } from "@/libs/smart-wallet/service/userOps/constants";
 import { Call, UserOperation, UserOperationAsHex } from "@/libs/smart-wallet/service/userOps/types";
-import { P256Credential, WebAuthn } from "@/libs/web-authn";
 import { getSmartWalletAddress } from "@/utils/smartWalletUtils";
 import {
   Address,
@@ -17,14 +16,14 @@ import {
   encodeFunctionData,
   encodePacked,
   getContract,
-  hexToBigInt,
   http,
+  pad,
   parseAbi,
   toHex,
   zeroAddress,
 } from "viem";
 import { serializeErc6492Signature } from "viem2";
-import { serializeSignature } from "webauthn-p256";
+import { parseSignature, sign } from "webauthn-p256";
 import { calculateReplaySafeHash } from "../../../../utils/replaySafeHash";
 import { getMessageHash, recoverPublicKeyWithCache } from "../../../../utils/webauthn";
 
@@ -136,7 +135,8 @@ export class UserOpBuilder {
     };
   }
 
-  private encodeSignature(credentials: P256Credential): Hex {
+  private encodeSignature({ signature, webauthn }: Awaited<ReturnType<typeof sign>>): Hex {
+    const signaturePoint = parseSignature(signature);
     return encodeAbiParameters(
       [
         {
@@ -172,12 +172,12 @@ export class UserOpBuilder {
       ],
       [
         {
-          authenticatorData: credentials.authenticatorData,
-          clientDataJSON: JSON.stringify(credentials.clientData),
-          challengeLocation: BigInt(23),
-          responseTypeLocation: BigInt(1),
-          r: credentials.signature.r,
-          s: credentials.signature.s,
+          authenticatorData: webauthn.authenticatorData,
+          clientDataJSON: webauthn.clientDataJSON,
+          challengeLocation: BigInt(webauthn.challengeIndex),
+          responseTypeLocation: BigInt(webauthn.typeIndex),
+          r: pad(toHex(signaturePoint.r)),
+          s: pad(toHex(signaturePoint.s)),
         },
       ],
     );
@@ -206,13 +206,17 @@ export class UserOpBuilder {
   public async getSignature(msgToSign: Hex, address: Address, keyId?: string): Promise<Hex> {
     const replaySafeHash = calculateReplaySafeHash(msgToSign, BigInt(this.chain.id), address);
 
-    const credentials: P256Credential = (await WebAuthn.get(replaySafeHash)) as P256Credential;
+    // const credentials: P256Credential = (await WebAuthn.get(replaySafeHash)) as P256Credential;
+    const credentials = await sign({
+      hash: replaySafeHash,
+      credentialId: keyId,
+    });
 
-    if (keyId && credentials.rawId !== keyId) {
-      throw new Error(
-        "Incorrect passkeys used for tx signing. Please sign the transaction with the correct logged-in account",
-      );
-    }
+    // if (keyId && credentials.rawId !== keyId) {
+    //   throw new Error(
+    //     "Incorrect passkeys used for tx signing. Please sign the transaction with the correct logged-in account",
+    //   );
+    // }
 
     const wrappedSignature = this.wrapSignature(this.encodeSignature(credentials));
 
@@ -223,16 +227,11 @@ export class UserOpBuilder {
     if (!code) {
       // Contract not deployed yet, generate ERC-6492 signature
       console.log("Contract not deployed yet, generating ERC-6492 signature");
+      const messageHash = await getMessageHash(credentials.webauthn);
+      console.log("messageHash", messageHash);
       const publicKey = await recoverPublicKeyWithCache({
-        messageHash: await getMessageHash({
-          authenticatorData: credentials.authenticatorData,
-          clientDataJSON: JSON.stringify(credentials.clientData),
-          userVerificationRequired: false,
-        }),
-        signatureHex: serializeSignature({
-          r: hexToBigInt(credentials.signature.r),
-          s: hexToBigInt(credentials.signature.s),
-        }),
+        messageHash,
+        signatureHex: credentials.signature,
       });
       if (!publicKey) {
         throw new Error("Invalid signature");
@@ -252,13 +251,10 @@ export class UserOpBuilder {
   }
 
   public async getOpSignature(msgToSign: Hex, keyId?: string): Promise<Hex> {
-    const credentials: P256Credential = (await WebAuthn.get(msgToSign)) as P256Credential;
-
-    if (keyId && credentials.rawId !== keyId) {
-      throw new Error(
-        "Incorrect passkeys used for tx signing. Please sign the transaction with the correct logged-in account",
-      );
-    }
+    const credentials = await sign({
+      hash: msgToSign,
+      credentialId: keyId,
+    });
 
     const signature = this.wrapSignature(this.encodeSignature(credentials));
     return signature;

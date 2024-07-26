@@ -23,7 +23,7 @@ export default function WCNotSupportedModal({ method }: Props) {
           <Callout.Icon>
             <ExclamationTriangleIcon />
           </Callout.Icon>
-          <Callout.Text>{`${method} method through wallet connect has not been implemented yet in this educational project.`}</Callout.Text>
+          <Callout.Text>{`${method} method through wallet connect has not been implemented yet.`}</Callout.Text>
         </Callout.Root>
       </Flex>
     </Flex>
