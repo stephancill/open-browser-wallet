@@ -63,15 +63,16 @@ function useMeHook() {
   async function get() {
     setIsLoading(true);
     try {
-      const message1 = hashMessage(
-        bytesToHex(Uint8Array.from("random-challenge1", (c) => c.charCodeAt(0))),
+      const randomChallenge = bytesToHex(
+        Uint8Array.from(Math.random().toString(), (c) => c.charCodeAt(0)),
       );
-      const { signature: signature1, webauthn: webauthn1 } = await sign({ hash: message1 });
-      const messageHash1 = await getMessageHash(webauthn1);
+      const messageHash = hashMessage(randomChallenge);
+      const { signature, webauthn } = await sign({ hash: messageHash });
+      const webauthnHash = await getMessageHash(webauthn);
 
       const publicKey = await recoverPublicKeyWithCache({
-        messageHash: messageHash1,
-        signatureHex: signature1,
+        messageHash: webauthnHash,
+        signatureHex: signature,
       });
 
       if (!publicKey) {
