@@ -2,15 +2,15 @@
 
 import WCNotSupportedModal from "@/components/WCNotSupportedModal";
 import WCSendTransactionModal from "@/components/WCSendTransactionModal";
-import { useModal } from "@/providers/ModalProvider";
-import React, { useEffect } from "react";
-import { EthSendEventPayload, WCEvent, walletConnect } from "./service/wallet-connect";
 import WCSignModal from "@/components/WCSignModal";
+import { useModal } from "@/providers/ModalProvider";
+import React, { useLayoutEffect } from "react";
+import { EthSendEventPayload, WCEvent, walletConnect } from "./service/wallet-connect";
 
 export function ModalOnWCEvent({ children }: { children: React.ReactNode }) {
   const { open } = useModal();
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     function handleEthSendTransaction({
       params,
       origin,
