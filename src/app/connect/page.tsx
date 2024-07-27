@@ -39,8 +39,8 @@ async function sendEncryptedMessage({ id, content }: { id: string; content: any 
   );
 }
 
-function closePopup() {
-  if (process.env.NODE_ENV === "development") {
+function closePopup(force?: boolean) {
+  if (process.env.NODE_ENV === "development" && !force) {
     return;
   }
   window.opener.postMessage("PopupUnload", "*");
@@ -50,11 +50,8 @@ function closePopup() {
 }
 
 export default function Page() {
-  const [pendingHandshake, setPendingHandshake] = useState<{
-    id: string;
-    messagesToLog: any[];
-  } | null>(null);
-  const { open: openModal, isOpen: isModalOpen } = useModal();
+  const [pendingHandshakeId, setPendingHandshakeId] = useState<string | null>(null);
+  const { open: openModal, isOpen: isModalOpen, close: closeModal } = useModal();
 
   const [logs, setLogs] = useState<any[]>([]);
 
@@ -62,17 +59,17 @@ export default function Page() {
   const { isLoading, error, needsSecondSignature, initiateRecovery, completeRecovery } =
     usePublicKeyRecovery();
 
-  const appendLog = useCallback((logEntry: any) => {
-    setLogs((prevLogs) => [...prevLogs, logEntry]);
+  const appendLog = useCallback((logEntry: any, response: boolean = false) => {
+    setLogs((prevLogs) => [...prevLogs, { ...logEntry, response }]);
   }, []);
 
   const handleRecovery = useCallback(
-    async (id: string, messagesToLog: any[]) => {
+    async (id: string) => {
       await initiateRecovery();
       if (!needsSecondSignature && me) {
-        await handleSuccessfulRecovery(id, messagesToLog, me.account);
+        await handleSuccessfulRecovery(id, me.account);
       } else {
-        setPendingHandshake({ id, messagesToLog });
+        setPendingHandshakeId(id);
       }
     },
     [initiateRecovery, needsSecondSignature, me],
@@ -89,39 +86,65 @@ export default function Page() {
       }
       console.log("message received", m.origin, m.data);
 
-      const messageToLog = { ...m.data };
+      const data = { ...m.data };
       let decrypted: RPCRequest | RPCResponse<unknown> | undefined;
-      if (messageToLog.content?.encrypted) {
+      if (data.content?.encrypted) {
         const secret = await keyManager.getSharedSecret();
         if (!secret) {
           console.error("Shared secret not derived");
           return;
         }
-        decrypted = await decryptContent(messageToLog.content.encrypted, secret);
-        messageToLog.content.decrypted = decrypted;
+        decrypted = await decryptContent(data.content.encrypted, secret);
+        data.content.decrypted = decrypted;
       }
 
-      const messagesToLog = [messageToLog];
+      appendLog(data);
 
       if (m.data.event === "selectSignerType") {
         const message = { requestId: m.data.id, data: "scw" };
         window.opener.postMessage(message, "*");
-        messagesToLog.push({ ...message, response: true });
+        appendLog(message, true);
       } else if (m.data.content?.handshake?.method === "eth_requestAccounts") {
         const peerPublicKey = await importKeyFromHexString("public", m.data.sender);
         await keyManager.setPeerPublicKey(peerPublicKey);
 
-        await handleRecovery(m.data.id, messagesToLog);
+        openModal(
+          <div>
+            <div>
+              <div>{m.origin}</div>
+              <div>wants to connect to your account</div>
+            </div>
+            <Button
+              onClick={() => {
+                handleRecovery(m.data.id);
+                closeModal();
+              }}
+              variant="solid"
+              size="3"
+              type="submit"
+            >
+              Connect
+            </Button>
+            <Button
+              onClick={() => {
+                closePopup(true);
+              }}
+              variant="outline"
+              size="3"
+              type="submit"
+            >
+              Cancel
+            </Button>
+          </div>,
+        );
       } else if (decrypted && "action" in decrypted) {
-        await handleDecryptedAction(decrypted, m.origin, m.data.id, messagesToLog);
+        await handleDecryptedAction(decrypted, m.origin, m.data.id);
       }
-
-      messagesToLog.forEach(appendLog);
     },
     [handleRecovery, appendLog],
   );
 
-  const handleSuccessfulRecovery = async (id: string, messagesToLog: any[], account: string) => {
+  const handleSuccessfulRecovery = async (id: string, account: string) => {
     const chains: Record<number, string> = {};
     if (smartWallet.client.chain) {
       chains[smartWallet.client.chain.id] = smartWallet.client.chain.rpcUrls.default.http[0];
@@ -132,22 +155,17 @@ export default function Page() {
       data: { chains },
     };
 
-    messagesToLog.push({ ...message, response: true });
+    appendLog(message, true);
+
     await sendEncryptedMessage({
       id,
       content: message,
     });
 
     closePopup();
-    messagesToLog.forEach(appendLog);
   };
 
-  const handleDecryptedAction = async (
-    decrypted: any,
-    origin: string,
-    id: string,
-    messagesToLog: any[],
-  ) => {
+  const handleDecryptedAction = async (decrypted: any, origin: string, id: string) => {
     smartWallet.init();
     if (!decrypted.action.params) {
       console.error("No params in action");
@@ -164,7 +182,7 @@ export default function Page() {
       result: { value: result },
     };
 
-    messagesToLog.push({ ...message, response: true });
+    appendLog(message, true);
 
     await sendEncryptedMessage({
       id,
@@ -174,17 +192,14 @@ export default function Page() {
     if (decrypted.action.method !== "eth_sendTransaction") {
       closePopup();
     }
-
-    messagesToLog.forEach(appendLog);
   };
 
   useEffect(() => {
-    console.log("page mounted");
     window.addEventListener("message", handleMessage, false);
 
     const message = { event: "PopupLoaded" };
     window.opener.postMessage(message, "*");
-    appendLog({ ...message, response: true });
+    appendLog(message, true);
 
     return () => {
       window.removeEventListener("message", handleMessage);
@@ -192,23 +207,31 @@ export default function Page() {
   }, [handleMessage, appendLog]);
 
   useEffect(() => {
-    if (me && pendingHandshake) {
-      handleSuccessfulRecovery(pendingHandshake.id, pendingHandshake.messagesToLog, me.account);
-      setPendingHandshake(null);
+    if (me && pendingHandshakeId) {
+      handleSuccessfulRecovery(pendingHandshakeId, me.account);
+      setPendingHandshakeId(null);
     }
-  }, [me, pendingHandshake]);
+  }, [me, pendingHandshakeId]);
 
   useEffect(() => {
     if (!isModalOpen && needsSecondSignature) {
       openModal(
         <div>
-          <Button onClick={handleCompleteRecovery} variant="outline" size="3" type="submit">
+          <Button
+            onClick={() => {
+              closeModal();
+              handleCompleteRecovery();
+            }}
+            variant="solid"
+            size="3"
+            type="submit"
+          >
             Complete Connection
           </Button>
         </div>,
       );
     }
-  }, [needsSecondSignature, isModalOpen, openModal]);
+  }, [needsSecondSignature, isModalOpen, openModal, closeModal]);
 
   return (
     <div className="overflow-scroll">
