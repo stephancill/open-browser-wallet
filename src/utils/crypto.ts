@@ -11,7 +11,7 @@ type SignatureAndMessage = { signatureHex: Hex; messageHash: Hex };
  * @param param0 Signature and message pairs
  * @returns The recovered public key or undefined if the public key could not be recovered
  */
-function recoverPublicKey([input1, input2]: [SignatureAndMessage, SignatureAndMessage]):
+export function recoverPublicKey([input1, input2]: [SignatureAndMessage, SignatureAndMessage]):
   | Hex
   | undefined {
   // Return the candidate public key that appears twice
@@ -23,7 +23,7 @@ function recoverPublicKey([input1, input2]: [SignatureAndMessage, SignatureAndMe
  * @param input Signature and message pair
  * @returns The two candidate public keys
  */
-function getCandidatePublicKeys(input: SignatureAndMessage) {
+export function getCandidatePublicKeys(input: SignatureAndMessage) {
   const signatureParsed = parseSignature(input.signatureHex);
   const candidate1 = new secp256r1.Signature(signatureParsed.r, signatureParsed.s)
     .addRecoveryBit(1)
@@ -70,13 +70,13 @@ export async function recoverPublicKeyWithCache(input: SignatureAndMessage) {
   return publicKey;
 }
 
-function isPublicKeyCached(publicKey: Hex) {
+export function isPublicKeyCached(publicKey: Hex) {
   const savedKeys = JSON.parse(localStorage.getItem(LOCAL_STORAGE_KEY_PUBKEYS) || "{}");
   if (savedKeys[publicKey]) console.log("cached", publicKey);
   return savedKeys[publicKey];
 }
 
-function cachePublicKey(publicKey: Hex) {
+export function cachePublicKey(publicKey: Hex) {
   const savedKeys = JSON.parse(localStorage.getItem(LOCAL_STORAGE_KEY_PUBKEYS) || "{}");
   savedKeys[publicKey] = true;
   localStorage.setItem(LOCAL_STORAGE_KEY_PUBKEYS, JSON.stringify(savedKeys));

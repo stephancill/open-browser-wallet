@@ -3,7 +3,7 @@
 import { saveUser } from "@/libs/factory";
 import { getUser } from "@/libs/factory/getUser";
 import { walletConnect } from "@/libs/wallet-connect/service/wallet-connect";
-import { getMessageHash, recoverPublicKeyWithCache } from "@/utils/crypto";
+import { cachePublicKey, getMessageHash, recoverPublicKeyWithCache } from "@/utils/crypto";
 import { createContext, useContext, useEffect, useState } from "react";
 import { Address, bytesToHex, hashMessage, Hex, zeroAddress } from "viem";
 import { createCredential, sign } from "webauthn-p256";
@@ -19,6 +19,14 @@ function useMeHook() {
   const [me, setMe] = useState<Me | null>();
   const [isReturning, setIsReturning] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
+
+  useEffect(() => {
+    if (me) {
+      // Check if local storage is up to date
+      localStorage.setItem("passkeys4337.me", JSON.stringify(me));
+      localStorage.setItem("passkeys4337.returning", "true");
+    }
+  }, [me]);
 
   function disconnect() {
     localStorage.removeItem("passkeys4337.me");
@@ -38,6 +46,8 @@ function useMeHook() {
         pubKey: credential.publicKey,
       });
 
+      cachePublicKey(credential.publicKey);
+
       const me = {
         keyId: user.id,
         pubKey: user.pubKey,
@@ -48,8 +58,6 @@ function useMeHook() {
         console.log("error while saving user");
         return;
       }
-      localStorage.setItem("passkeys4337.me", JSON.stringify(me));
-      localStorage.setItem("passkeys4337.returning", "true");
       walletConnect.smartWalletAddress = me.account;
       setIsReturning(true);
       setMe(me);
@@ -130,6 +138,7 @@ function useMeHook() {
     create,
     get,
     disconnect,
+    setMe,
   };
 }
 
