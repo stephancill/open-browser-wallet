@@ -39,11 +39,8 @@ async function sendEncryptedMessage({ id, content }: { id: string; content: any 
   );
 }
 
-function closePopup(force?: boolean) {
-  if (process.env.NODE_ENV === "development" && !force) {
-    return;
-  }
-  window.opener.postMessage("PopupUnload", "*");
+function closePopup() {
+  window.opener.postMessage({ event: "PopupUnload" }, "*");
   const parent = window.self;
   parent.opener = window.self;
   parent.close();
@@ -127,7 +124,7 @@ export default function Page() {
             </Button>
             <Button
               onClick={() => {
-                closePopup(true);
+                closePopup();
               }}
               variant="outline"
               size="3"
@@ -196,6 +193,7 @@ export default function Page() {
 
   useEffect(() => {
     window.addEventListener("message", handleMessage, false);
+    window.addEventListener("beforeunload", closePopup, false);
 
     const message = { event: "PopupLoaded" };
     window.opener.postMessage(message, "*");
@@ -203,8 +201,9 @@ export default function Page() {
 
     return () => {
       window.removeEventListener("message", handleMessage);
+      window.removeEventListener("beforeunload", closePopup);
     };
-  }, [handleMessage, appendLog]);
+  }, []);
 
   useEffect(() => {
     if (me && pendingHandshakeId) {
