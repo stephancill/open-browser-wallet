@@ -118,20 +118,22 @@ export async function encrypt(sharedSecret: CryptoKey, plainText: string): Promi
     new TextEncoder().encode(plainText),
   );
 
-  return { iv, cipherText };
+  return { iv, cipherText: new Uint8Array(cipherText) };
 }
 
 export async function decrypt(
   sharedSecret: CryptoKey,
   { iv, cipherText }: EncryptedData,
 ): Promise<string> {
+  console.log("decrypting", iv, cipherText);
+
   const plainText = await crypto.subtle.decrypt(
     {
       name: "AES-GCM",
-      iv,
+      iv: new Uint8Array(iv as any),
     },
     sharedSecret,
-    cipherText,
+    Buffer.from(new Uint8Array(cipherText)),
   );
 
   return new TextDecoder().decode(plainText);

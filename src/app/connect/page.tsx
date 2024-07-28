@@ -23,8 +23,7 @@ async function sendEncryptedMessage({ id, content }: { id: string; content: any 
   const secret = await keyManager.getSharedSecret();
 
   if (!secret) {
-    console.error("Shared secret not derived");
-    return;
+    throw new Error("Shared secret not derived");
   }
 
   const encrypted = await encryptContent(content, secret);
@@ -40,6 +39,10 @@ async function sendEncryptedMessage({ id, content }: { id: string; content: any 
 }
 
 function closePopup() {
+  if (process.env.NODE_ENV === "development") {
+    return;
+  }
+
   window.opener.postMessage({ event: "PopupUnload" }, "*");
   const parent = window.self;
   parent.opener = window.self;

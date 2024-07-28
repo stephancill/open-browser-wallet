@@ -8,6 +8,7 @@ import {
   decryptContent,
   encryptContent,
   exportKeyToHexString,
+  importKeyFromHexString,
   RPCRequest,
   RPCResponse,
 } from "@/utils/scw-sdk/cipher";
@@ -30,10 +31,7 @@ async function encryptMessage({ id, content }: { id: string; content: any }) {
     requestId: id,
     sender: await exportKeyToHexString("public", await keyManager.getOwnPublicKey()),
     content: {
-      encrypted: {
-        cipherText: JSON.stringify(content),
-        iv: stringToHex(""),
-      },
+      encrypted,
     },
   };
 }
@@ -87,14 +85,13 @@ export default function Page() {
       }
 
       decrypted && addMessage(JSON.stringify(decrypted, null, 2));
-      console.log(decrypted);
 
       if (m.data.event === "selectSignerType") {
         const response = { requestId: m.data.id, data: "scw" };
         return response;
       } else if (m.data.content?.handshake?.method === "eth_requestAccounts") {
-        // const peerPublicKey = await importKeyFromHexString("public", m.sender);
-        // await keyManager.setPeerPublicKey(peerPublicKey);
+        const peerPublicKey = await importKeyFromHexString("public", m.data.sender);
+        await keyManager.setPeerPublicKey(peerPublicKey);
         const accountResult = await me.get();
 
         const chains: Record<number, string> = {};
@@ -109,15 +106,10 @@ export default function Page() {
           },
         };
 
-        return m.content?.encrypted
-          ? await encryptMessage({
-              id: m.data.id,
-              content: message,
-            })
-          : sendPlaintextMessage({
-              id: m.data.id,
-              content: message,
-            });
+        return encryptMessage({
+          id: m.data.id,
+          content: message,
+        });
       } else if (decrypted && "action" in decrypted) {
         smartWallet.init();
         if (!decrypted.action.params) {
@@ -133,15 +125,10 @@ export default function Page() {
           result: { value: result },
         };
 
-        return m.content?.encrypted
-          ? await encryptMessage({
-              id: m.data.id,
-              content: message,
-            })
-          : sendPlaintextMessage({
-              id: m.data.id,
-              content: message,
-            });
+        return encryptMessage({
+          id: m.data.id,
+          content: message,
+        });
 
         // if (decrypted.action.method !== "eth_sendTransaction") {
         //   // closePopup();
@@ -162,7 +149,12 @@ export default function Page() {
 
     handleMessage(message).then((response) => {
       const url = new URL(callbackUrl);
-      url.searchParams.set("message", JSON.stringify(response));
+      url.searchParams.set(
+        "message",
+        JSON.stringify(response, (key, value) =>
+          value instanceof Uint8Array ? Array.from(value) : value,
+        ),
+      );
       router.push(url.toString());
     });
   }, [me, message, callbackUrl]);

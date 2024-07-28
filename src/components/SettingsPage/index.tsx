@@ -11,6 +11,7 @@ import { useWalletConnect } from "@/libs/wallet-connect";
 import SessionCard from "../SessionCard";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { SCWKeyManager } from "@/utils/scw-sdk/SCWKeyManager";
 
 export default function SettingsPage() {
   const { me, disconnect, isMounted } = useMe();
@@ -66,6 +67,17 @@ export default function SettingsPage() {
             </Button>
           </Flex>
         </Flex>
+
+        <Button
+          size={"3"}
+          onClick={() => {
+            new SCWKeyManager().clear();
+          }}
+          color={"red"}
+          variant="outline"
+        >
+          Clear Connection Keys
+        </Button>
 
         <Separator style={{ width: "100%" }} />
 
