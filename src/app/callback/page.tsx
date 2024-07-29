@@ -15,6 +15,7 @@ import {
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { stringToHex } from "viem";
+import { replacer, reviver } from "../../utils/scw-sdk/json";
 
 const keyManager = new SCWKeyManager();
 
@@ -72,7 +73,7 @@ export default function Page() {
     ): Promise<
       { requestId: string; sender?: string; content: any } | { requestId: string; data: string }
     > => {
-      const m = JSON.parse(rawMessage);
+      const m = JSON.parse(rawMessage, reviver);
       let decrypted: RPCRequest | RPCResponse<unknown> | undefined;
       if (m.data.content?.encrypted) {
         const secret = await keyManager.getSharedSecret();
@@ -149,12 +150,7 @@ export default function Page() {
 
     handleMessage(message).then((response) => {
       const url = new URL(callbackUrl);
-      url.searchParams.set(
-        "message",
-        JSON.stringify(response, (key, value) =>
-          value instanceof Uint8Array ? Array.from(value) : value,
-        ),
-      );
+      url.searchParams.set("message", JSON.stringify(response, replacer));
       router.push(url.toString());
     });
   }, [me, message, callbackUrl]);

@@ -39,9 +39,9 @@ async function sendEncryptedMessage({ id, content }: { id: string; content: any 
 }
 
 function closePopup() {
-  if (process.env.NODE_ENV === "development") {
-    return;
-  }
+  // if (process.env.NODE_ENV === "development") {
+  //   return;
+  // }
 
   window.opener.postMessage({ event: "PopupUnload" }, "*");
   const parent = window.self;
