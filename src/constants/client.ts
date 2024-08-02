@@ -1,9 +1,7 @@
 import { createPublicClient, http } from "viem";
 import { base, mainnet, optimism } from "viem/chains";
 
-export const CHAIN = {
-  ...base,
-};
+export const CHAIN = optimism;
 
 export const transport = http(process.env.NEXT_PUBLIC_RPC_ENDPOINT);
 
