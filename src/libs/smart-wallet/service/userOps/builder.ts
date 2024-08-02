@@ -1,4 +1,4 @@
-import { ENTRYPOINT_ADDRESS } from "@/constants";
+import { ENTRYPOINT_ABI, ENTRYPOINT_ADDRESS } from "@/constants";
 import { CSW_FACTORY_ABI } from "@/constants/abi/CoinbaseSmartWalletFactory";
 import { smartWallet } from "@/libs/smart-wallet";
 import { DEFAULT_USER_OP } from "@/libs/smart-wallet/service/userOps/constants";
@@ -23,7 +23,6 @@ import {
   toHex,
   zeroAddress,
 } from "viem";
-import { readContract } from "viem/actions";
 import { serializeErc6492Signature } from "viem/experimental";
 import { parseSignature, sign } from "webauthn-p256";
 
@@ -352,7 +351,7 @@ export class UserOpBuilder {
   private async _getUserOpHash(userOp: UserOperation): Promise<Hex> {
     const userOpHash = await this.publicClient.readContract({
       address: this.entryPoint,
-      abi: parseAbi(["function getUserOpHash(UserOperation memory) view returns (bytes32)"]),
+      abi: ENTRYPOINT_ABI,
       functionName: "getUserOpHash",
       args: [userOp],
     });

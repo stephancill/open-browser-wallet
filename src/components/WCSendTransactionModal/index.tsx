@@ -13,7 +13,7 @@ import { Chain, Hash, formatEther } from "viem";
 import { useMe } from "@/providers/MeProvider";
 import { useBalance } from "@/providers/BalanceProvider";
 import { EthSendTransactionParams } from "@/libs/wallet-connect/config/EIP155";
-import { CHAIN, MAINNET_PUBLIC_CLIENT } from "@/constants";
+import { CHAIN, MAINNET_PUBLIC_CLIENT, PUBLIC_CLIENT } from "@/constants";
 import { normalize } from "viem/ens";
 
 type Props = {
@@ -75,7 +75,7 @@ export default function WCSendTransactionModal({ params, origin, onSuccess }: Pr
       }
 
       const builder = new UserOpBuilder(smartWallet.client.chain as Chain);
-      const { maxFeePerGas, maxPriorityFeePerGas } = await smartWallet.client.estimateFeesPerGas();
+      const { maxFeePerGas, maxPriorityFeePerGas } = await PUBLIC_CLIENT.estimateFeesPerGas();
 
       const value = params?.value ? BigInt(params.value) : BigInt(0);
       const data = params?.data ? params.data : "0x";

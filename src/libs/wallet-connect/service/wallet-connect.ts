@@ -198,7 +198,6 @@ class WalletConnect extends EventEmitter {
         pairingTopic: params.pairingTopic,
       });
       this._setSessions();
-      // switch to Sepolia
     } catch (error) {
       await this._web3wallet.rejectSession({
         id,

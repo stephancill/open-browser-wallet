@@ -8,7 +8,7 @@ export const CHAIN = {
 export const transport = http(process.env.NEXT_PUBLIC_RPC_ENDPOINT);
 
 export const PUBLIC_CLIENT = createPublicClient({
-  chain: base,
+  chain: CHAIN,
   transport: http(),
 });
 

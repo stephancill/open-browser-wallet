@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { smartWallet } from "../service/smart-wallet";
 import { Hash } from "viem";
+import { PUBLIC_CLIENT } from "@/constants";
 
 export function useSmartWalletHook() {
   const [address, setAddress] = useState<Hash | null>(null);
@@ -13,7 +14,7 @@ export function useSmartWalletHook() {
   useEffect(() => {
     if (!address) return;
 
-    smartWallet.client.watchEvent({
+    PUBLIC_CLIENT.watchEvent({
       address: address,
       onLogs: (logs: any) => {},
     });
