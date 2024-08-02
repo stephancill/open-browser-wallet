@@ -1,14 +1,35 @@
 "use client";
 
-import React, { useContext } from "react";
-import { useSmartWalletHook } from "@/libs/smart-wallet/hook/useSmartWalletHook";
-import { WagmiConfig, configureChains, createConfig } from "wagmi";
-import { publicProvider } from "wagmi/providers/public";
 import { CHAIN } from "@/constants";
+import { useSmartWalletHook } from "@/libs/smart-wallet/hook/useSmartWalletHook";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import React, { useContext } from "react";
+import { WagmiProvider, createConfig, http } from "wagmi";
 
-type UseSmartWallet = ReturnType<typeof useSmartWalletHook>;
+const queryClient = new QueryClient();
+const wagmiConfig = createConfig({
+  chains: [CHAIN],
+  transports: {
+    [CHAIN.id]: http(),
+  },
+});
 
 const SmartWalletContext = React.createContext<UseSmartWallet | null>(null);
+
+export function SmartWalletProvider({ children }: { children: React.ReactNode }) {
+  const smartWalletValue = useSmartWalletHook();
+
+  return (
+    <WagmiProvider config={wagmiConfig}>
+      <QueryClientProvider client={queryClient}>
+        <SmartWalletContext.Provider value={smartWalletValue}>
+          {children}
+        </SmartWalletContext.Provider>
+      </QueryClientProvider>
+    </WagmiProvider>
+  );
+}
+
 export const useWalletConnect = (): UseSmartWallet => {
   const context = useContext(SmartWalletContext);
   if (!context) {
@@ -17,19 +38,4 @@ export const useWalletConnect = (): UseSmartWallet => {
   return context;
 };
 
-export function SmartWalletProvider({ children }: { children: React.ReactNode }) {
-  const smartWalletValue = useSmartWalletHook();
-
-  const { publicClient } = configureChains([CHAIN], [publicProvider()]);
-
-  const wagmiConfig = createConfig({
-    autoConnect: true,
-    publicClient: publicClient,
-  });
-
-  return (
-    <WagmiConfig config={wagmiConfig}>
-      <SmartWalletContext.Provider value={smartWalletValue}>{children}</SmartWalletContext.Provider>
-    </WagmiConfig>
-  );
-}
+type UseSmartWallet = ReturnType<typeof useSmartWalletHook>;

@@ -1,8 +1,10 @@
-import { ENTRYPOINT_ABI, ENTRYPOINT_ADDRESS } from "@/constants";
+import { ENTRYPOINT_ADDRESS } from "@/constants";
 import { CSW_FACTORY_ABI } from "@/constants/abi/CoinbaseSmartWalletFactory";
 import { smartWallet } from "@/libs/smart-wallet";
 import { DEFAULT_USER_OP } from "@/libs/smart-wallet/service/userOps/constants";
 import { Call, UserOperation, UserOperationAsHex } from "@/libs/smart-wallet/service/userOps/types";
+import { getMessageHash, recoverPublicKeyWithCache } from "@/utils/crypto";
+import { calculateReplaySafeHash } from "@/utils/replaySafeHash";
 import { getSmartWalletAddress } from "@/utils/smartWalletUtils";
 import {
   Address,
@@ -10,7 +12,6 @@ import {
   GetContractReturnType,
   Hex,
   PublicClient,
-  WalletClient,
   createPublicClient,
   encodeAbiParameters,
   encodeFunctionData,
@@ -22,16 +23,15 @@ import {
   toHex,
   zeroAddress,
 } from "viem";
-import { serializeErc6492Signature } from "viem2";
+import { readContract } from "viem/actions";
+import { serializeErc6492Signature } from "viem/experimental";
 import { parseSignature, sign } from "webauthn-p256";
-import { calculateReplaySafeHash } from "@/utils/replaySafeHash";
-import { getMessageHash, recoverPublicKeyWithCache } from "@/utils/crypto";
 
 export class UserOpBuilder {
   public entryPoint: Hex = ENTRYPOINT_ADDRESS;
   public chain: Chain;
   public publicClient: PublicClient;
-  public factoryContract: GetContractReturnType<typeof CSW_FACTORY_ABI, WalletClient, PublicClient>;
+  public factoryContract: GetContractReturnType<typeof CSW_FACTORY_ABI>;
 
   constructor(chain: Chain) {
     this.chain = chain;
@@ -40,9 +40,11 @@ export class UserOpBuilder {
       transport: http(),
     });
 
+    // @ts-ignore -- types are weird TODO: fix
     this.factoryContract = getContract({
       address: process.env.NEXT_PUBLIC_FACTORY_CONTRACT_ADDRESS as Hex,
       abi: CSW_FACTORY_ABI,
+      // @ts-ignore
       publicClient: this.publicClient,
     });
   }
@@ -348,13 +350,13 @@ export class UserOpBuilder {
   }
 
   private async _getUserOpHash(userOp: UserOperation): Promise<Hex> {
-    const entryPointContract = getContract({
+    const userOpHash = await this.publicClient.readContract({
       address: this.entryPoint,
-      abi: ENTRYPOINT_ABI,
-      publicClient: this.publicClient,
+      abi: parseAbi(["function getUserOpHash(UserOperation memory) view returns (bytes32)"]),
+      functionName: "getUserOpHash",
+      args: [userOp],
     });
 
-    const userOpHash = entryPointContract.read.getUserOpHash([userOp]);
     return userOpHash;
   }
 }
