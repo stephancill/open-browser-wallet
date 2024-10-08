@@ -6,19 +6,47 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "migrate": "tsx src/scripts/migrate.ts"
   },
   "dependencies": {
+    "@dotenvx/dotenvx": "^1.16.1",
+    "@lucia-auth/adapter-postgresql": "^3.1.2",
+    "@tanstack/react-query": "^5.59.0",
+    "@walletconnect/core": "^2.13.3",
+    "@walletconnect/types": "^2.13.3",
+    "@walletconnect/utils": "^2.13.3",
+    "@walletconnect/web3wallet": "^1.12.3",
+    "dotenv": "^16.4.5",
+    "ioredis": "^5.4.1",
+    "kysely": "^0.27.4",
+    "lucia": "^3.2.1",
+    "next": "14.2.14",
+    "pg": "^8.13.0",
+    "pg-cursor": "^2.12.0",
     "react": "^18",
     "react-dom": "^18",
-    "next": "14.2.14"
+    "tailwind-merge": "^2.5.3",
+    "viem": "2.21.14",
+    "wagmi": "2.12.14",
+    "webauthn-p256": "^0.0.10"
   },
   "devDependencies": {
-    "typescript": "^5",
     "@types/node": "^20",
+    "@types/pg": "^8.11.10",
+    "@types/pg-cursor": "^2.7.2",
     "@types/react": "^18",
     "@types/react-dom": "^18",
+    "@wagmi/cli": "latest",
+    "bufferutil": "^4.0.8",
+    "encoding": "^0.1.13",
+    "lokijs": "^1.5.12",
+    "pino-pretty": "^10.3.1",
     "postcss": "^8",
-    "tailwindcss": "^3.4.1"
+    "supports-color": "^9.4.0",
+    "tailwindcss": "^3.4.1",
+    "tsx": "^4.19.1",
+    "typescript": "^5",
+    "utf-8-validate": "^5.0.2"
   }
 }

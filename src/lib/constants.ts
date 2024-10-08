@@ -1,0 +1,1 @@
+export const CHALLENGE_DURATION_SECONDS = 60;

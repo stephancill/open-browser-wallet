@@ -1,0 +1,46 @@
+version: '3.9'
+
+services:
+  postgres:
+    image: 'postgres:16-alpine'
+    restart: unless-stopped
+    ports:
+      - '5432:5432'
+    environment:
+      - POSTGRES_DB=postgres
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=password
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB']
+      interval: 5s       # Check every 5 seconds for readiness
+      timeout: 5s        # Allow up to 5 seconds for a response
+      retries: 3         # Fail after 3 unsuccessful attempts
+      start_period: 10s  # Start checks after 10 seconds
+    networks:
+      - app-network
+
+  redis:
+    image: 'redis:7.2-alpine'
+    restart: unless-stopped
+    command: --loglevel warning --maxmemory-policy noeviction
+    volumes:
+      - redis-data:/data
+    ports:
+      - '6379:6379'
+    healthcheck:
+      test: ['CMD-SHELL', 'redis-cli ping']
+      interval: 5s       # Check every 5 seconds
+      timeout: 5s        # Allow up to 5 seconds for a response
+      retries: 3         # Fail after 3 unsuccessful attempts
+      start_period: 5s   # Start health checks after 5 seconds
+    networks:
+      - app-network
+
+volumes:
+  postgres-data:
+  redis-data:
+
+networks:
+  app-network:
