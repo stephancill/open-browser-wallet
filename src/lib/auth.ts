@@ -4,6 +4,7 @@ import { Address } from "viem";
 import { Hex } from "webauthn-p256";
 import { getAuthAdapter } from "./db";
 import { AuthError } from "./errors";
+import { AUTH_SESSION_COOKIE_NAME } from "./constants";
 
 const adapter = getAuthAdapter();
 
@@ -13,6 +14,7 @@ export const lucia = new Lucia(adapter, {
       // set to `true` when using HTTPS
       secure: process.env.NODE_ENV === "production",
     },
+    name: AUTH_SESSION_COOKIE_NAME,
   },
   getUserAttributes: (attributes) => {
     return {

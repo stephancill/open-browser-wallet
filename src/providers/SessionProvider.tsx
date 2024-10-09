@@ -1,7 +1,9 @@
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createContext, ReactNode, useContext, useEffect } from "react";
 import { UserRow } from "../types/db";
 import { useRouter } from "next/navigation";
+import Cookies from "js-cookie";
+import { AUTH_SESSION_COOKIE_NAME } from "../lib/constants";
 
 async function fetchUser(): Promise<UserRow> {
   const response = await fetch("/api/user");
@@ -24,12 +26,14 @@ interface SessionContextType {
   isLoading: boolean;
   isError: boolean;
   refetch: () => void;
+  logout: () => void;
 }
 
 const SessionContext = createContext<SessionContextType | undefined>(undefined);
 
 export function SessionProvider({ children }: { children: ReactNode }) {
   const router = useRouter();
+  const queryClient = useQueryClient();
 
   const {
     data: user,
@@ -43,6 +47,10 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     retry: false,
   });
 
+  const logout = () => {
+    router.push("/logout");
+  };
+
   useEffect(() => {
     if (isSuccess && user) {
       router.push("/");
@@ -50,7 +58,9 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   }, [isSuccess, user, router]);
 
   return (
-    <SessionContext.Provider value={{ user, isLoading, isError, refetch }}>
+    <SessionContext.Provider
+      value={{ user, isLoading, isError, refetch, logout }}
+    >
       {children}
     </SessionContext.Provider>
   );

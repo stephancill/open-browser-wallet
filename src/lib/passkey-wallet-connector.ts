@@ -54,7 +54,7 @@ const bundlerTransports = Object.fromEntries(
   chains.map((chain) => [chain.id, http(formatBundlerRpcUrl(chain.id))])
 );
 
-export const passkey = ({ account }: { account: SmartAccount }) => {
+export const passkeyConnector = ({ account }: { account: SmartAccount }) => {
   let connected = true;
   let connectedChainId: number;
 

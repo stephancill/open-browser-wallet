@@ -8,16 +8,17 @@ import {
   toWebAuthnAccount,
 } from "viem/account-abstraction";
 import { useClient, useConnect, useAccount } from "wagmi";
-import { passkey } from "../lib/passkey-wallet-connector";
+import { passkeyConnector } from "../lib/passkey-wallet-connector";
 import { useQuery } from "@tanstack/react-query";
+import Link from "next/link";
 
 export default function Home() {
-  const { user } = useSession();
+  const { user, isLoading: isUserLoading, logout } = useSession();
   const client = useClient();
   const { connectAsync } = useConnect();
   const account = useAccount();
 
-  const { data: smartWallet } = useQuery({
+  const { isLoading: isWalletLoading } = useQuery({
     queryKey: ["smartWallet", user?.passkeyId],
     queryFn: async () => {
       if (!user) return null;
@@ -34,7 +35,7 @@ export default function Home() {
         owners: [passkeyAccount],
       });
 
-      const burnerConnector = passkey({
+      const burnerConnector = passkeyConnector({
         account: smartWallet,
       });
 
@@ -48,12 +49,22 @@ export default function Home() {
     throwOnError: true,
   });
 
+  if (!isUserLoading && !user) {
+    return (
+      <div>
+        <Link href="/login">Login</Link>
+        <Link href="/sign-up">Sign Up</Link>
+      </div>
+    );
+  }
+
   return (
     <AuthLayout>
       <div>
         <h1>Open Browser Wallet</h1>
         <pre>{JSON.stringify(user, null, 2)}</pre>
-        <div>Connected: {account.address}</div>
+        <div>Connected: {isWalletLoading ? "Loading..." : account.address}</div>
+        <button onClick={logout}>Logout</button>
       </div>
     </AuthLayout>
   );

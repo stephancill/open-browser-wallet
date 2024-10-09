@@ -19,6 +19,7 @@
     "@walletconnect/web3wallet": "^1.12.3",
     "dotenv": "^16.4.5",
     "ioredis": "^5.4.1",
+    "js-cookie": "^3.0.5",
     "kysely": "^0.27.4",
     "lucia": "^3.2.1",
     "next": "14.2.14",
@@ -32,6 +33,7 @@
     "webauthn-p256": "^0.0.10"
   },
   "devDependencies": {
+    "@types/js-cookie": "^3.0.6",
     "@types/node": "^20",
     "@types/pg": "^8.11.10",
     "@types/pg-cursor": "^2.7.2",
