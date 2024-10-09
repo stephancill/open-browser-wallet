@@ -1,7 +1,8 @@
 import { Lucia } from "lucia";
-import { UserRow } from "../types/db";
-import { getAuthAdapter } from "./db";
 import { NextRequest, NextResponse } from "next/server";
+import { Address } from "viem";
+import { Hex } from "webauthn-p256";
+import { getAuthAdapter } from "./db";
 import { AuthError } from "./errors";
 
 const adapter = getAuthAdapter();
@@ -15,7 +16,13 @@ export const lucia = new Lucia(adapter, {
   },
   getUserAttributes: (attributes) => {
     return {
-      ...attributes,
+      id: attributes.id,
+      walletAddress: attributes.wallet_address,
+      passkeyId: attributes.passkey_id,
+      passkeyPublicKey: attributes.passkey_public_key,
+      createdAt: attributes.created_at,
+      updatedAt: attributes.updated_at,
+      username: attributes.username,
     };
   },
 });
@@ -34,8 +41,11 @@ export function withAuth<T extends Record<string, string> = {}>(
     context: { params: T }
   ): Promise<Response> => {
     try {
+      const cookieHeader = req.headers.get("Cookie");
       const authorizationHeader = req.headers.get("Authorization");
-      const token = lucia.readBearerToken(authorizationHeader ?? "");
+      const token =
+        lucia.readBearerToken(authorizationHeader ?? "") ||
+        lucia.readSessionCookie(cookieHeader ?? "");
 
       const result = await lucia.validateSession(token ?? "");
       if (!result.session) {
@@ -59,6 +69,14 @@ export function withAuth<T extends Record<string, string> = {}>(
 declare module "lucia" {
   interface Register {
     Lucia: typeof lucia;
-    DatabaseUserAttributes: UserRow;
+    DatabaseUserAttributes: {
+      id: string;
+      wallet_address: Address;
+      passkey_id: string;
+      passkey_public_key: Hex;
+      created_at: Date;
+      updated_at: Date;
+      username: string | null;
+    };
   }
 }

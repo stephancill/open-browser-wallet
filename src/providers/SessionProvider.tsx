@@ -1,15 +1,22 @@
 import { useQuery } from "@tanstack/react-query";
-import { createContext, ReactNode, useContext } from "react";
+import { createContext, ReactNode, useContext, useEffect } from "react";
 import { UserRow } from "../types/db";
+import { useRouter } from "next/navigation";
 
-async function fetchUser(): Promise<UserRow | null> {
-  const user = localStorage.getItem("obw:user");
+async function fetchUser(): Promise<UserRow> {
+  const response = await fetch("/api/user");
 
-  if (!user) {
-    return null;
+  if (!response.ok) {
+    throw new Error("Failed to fetch user");
   }
 
-  return JSON.parse(user);
+  const { user } = await response.json();
+
+  if (!user) {
+    throw new Error("User not found");
+  }
+
+  return user;
 }
 
 interface SessionContextType {
@@ -22,15 +29,25 @@ interface SessionContextType {
 const SessionContext = createContext<SessionContextType | undefined>(undefined);
 
 export function SessionProvider({ children }: { children: ReactNode }) {
+  const router = useRouter();
+
   const {
     data: user,
     isLoading,
     isError,
+    isSuccess,
     refetch,
   } = useQuery({
     queryKey: ["user"],
     queryFn: fetchUser,
+    retry: false,
   });
+
+  useEffect(() => {
+    if (isSuccess && user) {
+      router.push("/");
+    }
+  }, [isSuccess, user, router]);
 
   return (
     <SessionContext.Provider value={{ user, isLoading, isError, refetch }}>
@@ -42,7 +59,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 export function useSession() {
   const context = useContext(SessionContext);
   if (context === undefined) {
-    throw new Error("useUser must be used within a UserProvider");
+    throw new Error("useSession must be used within a SessionProvider");
   }
   return context;
 }

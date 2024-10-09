@@ -43,9 +43,16 @@ export async function POST(req: NextRequest) {
 
   const session = await lucia.createSession(user.id, {});
 
-  return Response.json({
-    success: true,
-    user,
-    session,
-  });
+  return Response.json(
+    {
+      success: true,
+      user,
+      session,
+    },
+    {
+      headers: {
+        "Set-Cookie": lucia.createSessionCookie(session.id).serialize(),
+      },
+    }
+  );
 }

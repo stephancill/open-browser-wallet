@@ -7,6 +7,7 @@ import { type State, WagmiProvider } from "wagmi";
 import { getConfig } from "@/lib/wagmi";
 import { WalletConnectProvider } from "../providers/WalletConnectProvider";
 import { SmartWalletMetadataProvider } from "../providers/SmartWalletMetadataProvider";
+import { SessionProvider } from "../providers/SessionProvider";
 
 export function Providers(props: {
   children: ReactNode;
@@ -19,7 +20,9 @@ export function Providers(props: {
     <WagmiProvider config={config} initialState={props.initialState}>
       <QueryClientProvider client={queryClient}>
         <SmartWalletMetadataProvider>
-          <WalletConnectProvider>{props.children}</WalletConnectProvider>
+          <WalletConnectProvider>
+            <SessionProvider>{props.children}</SessionProvider>
+          </WalletConnectProvider>
         </SmartWalletMetadataProvider>
       </QueryClientProvider>
     </WagmiProvider>

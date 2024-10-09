@@ -5,8 +5,10 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { Hex, hexToBytes } from "viem";
 import { createCredential } from "webauthn-p256";
 import { CHALLENGE_DURATION_SECONDS } from "@/lib/constants";
+import { useSession } from "../../providers/SessionProvider";
 
 export default function SignUpPage() {
+  const { refetch: refetchUser } = useSession();
   const [username, setUsername] = useState("");
   const [nonce] = useState(() => crypto.randomUUID());
 
@@ -69,8 +71,7 @@ export default function SignUpPage() {
       return response.json();
     },
     onSuccess: (user) => {
-      // Store the user in local storage
-      localStorage.setItem("user", JSON.stringify(user));
+      refetchUser();
     },
   });
 

@@ -1,0 +1,26 @@
+diff --git a/_esm/account-abstraction/actions/bundler/prepareUserOperation.js b/_esm/account-abstraction/actions/bundler/prepareUserOperation.js
+index 307d51f41d2c7b438ded03a636457b3c566112f3..9c30e3fa0b3fe5eb425ebddfa1fcc7a02ba828fe 100644
+--- a/_esm/account-abstraction/actions/bundler/prepareUserOperation.js
++++ b/_esm/account-abstraction/actions/bundler/prepareUserOperation.js
+@@ -156,7 +156,7 @@ export async function prepareUserOperation(client, parameters_) {
+                 return request;
+             // Otherwise, we will need to estimate the fees to fill the fee properties.
+             try {
+-                const client_ = 'client' in client ? client.client : client;
++                const client_ = 'client' in client && typeof client.client !== 'undefined' ? client.client : client;
+                 const fees = await getAction(client_, estimateFeesPerGas, 'estimateFeesPerGas')({
+                     chain: client_.chain,
+                     type: 'eip1559',
+diff --git a/_esm/clients/transports/http.js b/_esm/clients/transports/http.js
+index 03ae0983434fa2d70d302ec269c9c8dfb010a9b0..4a9f0fc5ecc623333e194dc6741c825e97214f10 100644
+--- a/_esm/clients/transports/http.js
++++ b/_esm/clients/transports/http.js
+@@ -27,7 +27,7 @@ url, config = {}) {
+             key,
+             name,
+             async request({ method, params }) {
+-                const body = { method, params };
++                const body = { method, params, id: 1, jsonrpc: '2.0' };
+                 const { schedule } = createBatchScheduler({
+                     id: url_,
+                     wait,

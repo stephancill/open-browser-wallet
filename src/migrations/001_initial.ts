@@ -3,7 +3,7 @@ import { Kysely, sql } from "kysely";
 export async function up(db: Kysely<any>): Promise<void> {
   await db.schema
     .createTable("users")
-    .addColumn("id", "uuid", (col) =>
+    .addColumn("id", "varchar", (col) =>
       col.primaryKey().defaultTo(sql`gen_random_uuid()`)
     )
     .addColumn("wallet_address", "varchar", (col) => col.notNull())
@@ -27,7 +27,7 @@ export async function up(db: Kysely<any>): Promise<void> {
 
   await db.schema
     .createTable("user_session")
-    .addColumn("id", "text", (col) => col.primaryKey())
+    .addColumn("id", "varchar", (col) => col.primaryKey())
     .addColumn("user_id", "text", (col) =>
       col.notNull().references("users.id").onDelete("cascade")
     )

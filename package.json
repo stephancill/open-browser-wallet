@@ -48,5 +48,10 @@
     "tsx": "^4.19.1",
     "typescript": "^5",
     "utf-8-validate": "^5.0.2"
+  },
+  "pnpm": {
+    "patchedDependencies": {
+      "viem@2.21.14": "patches/viem@2.21.14.patch"
+    }
   }
 }

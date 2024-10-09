@@ -17,6 +17,8 @@ import { CHALLENGE_DURATION_SECONDS } from "@/lib/constants";
  */
 
 export default function LoginPage() {
+  const { refetch: refetchUser } = useSession();
+
   const [nonce] = useState(() => crypto.randomUUID());
 
   const {
@@ -69,8 +71,7 @@ export default function LoginPage() {
       return user;
     },
     onSuccess: (user) => {
-      // Store the user in local storage
-      localStorage.setItem("user", JSON.stringify(user));
+      refetchUser();
     },
   });
 
