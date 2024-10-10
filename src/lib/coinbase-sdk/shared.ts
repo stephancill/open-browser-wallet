@@ -1,4 +1,4 @@
-import { Address, EIP1193Provider } from "viem";
+import { EIP1193RequestFn, EIP1474Methods } from "viem";
 import {
   decryptContent,
   encryptContent,
@@ -52,25 +52,26 @@ export async function handleMessage({
     sender: string;
     sdkVersion: string;
     timestamp: string;
-    event: string;
+    event?: string;
     content: any;
   };
   transportEndpoints?: Record<number, string>;
-  providerRequest?: EIP1193Provider["request"];
-}) {
+  providerRequest?: EIP1193RequestFn<EIP1474Methods>;
+}): Promise<{ result?: any; data: any; method?: string }> {
+  console.log("handleMessage", data);
+
   let decrypted: RPCRequest | RPCResponse<unknown> | undefined;
   if (data.content?.encrypted) {
     const secret = await keyManager.getSharedSecret();
     if (!secret) {
-      console.error("Shared secret not derived");
-      return;
+      throw new Error("Shared secret not derived");
     }
     decrypted = await decryptContent(data.content.encrypted, secret);
     data.content.decrypted = decrypted;
   }
 
   if (data.event === "selectSignerType") {
-    return { requestId: data.id, data: "scw" };
+    return { result: { requestId: data.id, data: "scw" }, data };
   } else if (data.content?.handshake?.method === "eth_requestAccounts") {
     const peerPublicKey = await importKeyFromHexString("public", data.sender);
     await keyManager.setPeerPublicKey(peerPublicKey);
@@ -86,7 +87,16 @@ export async function handleMessage({
       },
     };
 
-    return getEncryptedMessage({ id: data.id, content: response });
+    const encryptedResponse = await getEncryptedMessage({
+      id: data.id,
+      content: response,
+    });
+
+    return {
+      result: encryptedResponse,
+      method: "eth_requestAccounts",
+      data,
+    };
   } else if (decrypted && "action" in decrypted) {
     const result = await providerRequest?.({
       method: decrypted.action.method as any,
@@ -97,6 +107,19 @@ export async function handleMessage({
       result: { value: result },
     };
 
-    return getEncryptedMessage({ id: data.id, content: response });
+    const encryptedResponse = await getEncryptedMessage({
+      id: data.id,
+      content: response,
+    });
+
+    return {
+      result: encryptedResponse,
+      method: decrypted.action.method,
+      data,
+    };
   }
+
+  return { data };
+
+  // throw new Error(`Unsupported message type: ${data.event}`);
 }

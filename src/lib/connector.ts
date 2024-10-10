@@ -114,6 +114,10 @@ export const smartWalletConnector = ({
           },
         });
 
+        if (method === "eth_requestAccounts") {
+          return [account.address];
+        }
+
         if (method === "eth_sendTransaction") {
           const actualParams = (params as SendTransactionParameters[])[0];
 

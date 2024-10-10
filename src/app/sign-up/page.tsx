@@ -5,12 +5,15 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { Hex, hexToBytes } from "viem";
 import { createCredential } from "webauthn-p256";
 import { CHALLENGE_DURATION_SECONDS } from "@/lib/constants";
-import { useSession } from "../../providers/SessionProvider";
+import { useRouter, useSearchParams } from "next/navigation";
+import Link from "next/link";
 
 export default function SignUpPage() {
-  const { refetch: refetchUser } = useSession();
   const [username, setUsername] = useState("");
   const [nonce] = useState(() => crypto.randomUUID());
+
+  const router = useRouter();
+  const searchParams = useSearchParams();
 
   const {
     data: challenge,
@@ -71,7 +74,13 @@ export default function SignUpPage() {
       return response.json();
     },
     onSuccess: (user) => {
-      refetchUser();
+      const redirectUrl = searchParams.get("redirect");
+
+      if (redirectUrl) {
+        router.push(decodeURIComponent(redirectUrl));
+      } else {
+        router.push("/");
+      }
     },
   });
 
@@ -114,6 +123,15 @@ export default function SignUpPage() {
       {createAccountMutation.isError && (
         <div>Error: {(createAccountMutation.error as Error).message}</div>
       )}
+
+      <Link
+        href={{
+          pathname: "/sign-up",
+          query: { redirect: searchParams.get("redirect") },
+        }}
+      >
+        Login
+      </Link>
     </div>
   );
 }

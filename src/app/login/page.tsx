@@ -1,11 +1,12 @@
 "use client";
 
-import { useCallback, useState } from "react";
-import { useQuery, useMutation } from "@tanstack/react-query";
-import { sign, SignReturnType } from "webauthn-p256";
-import { Hex } from "viem";
-import { useSession } from "@/providers/SessionProvider";
 import { CHALLENGE_DURATION_SECONDS } from "@/lib/constants";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useCallback, useState } from "react";
+import { Hex } from "viem";
+import { sign, SignReturnType } from "webauthn-p256";
 
 /**
  * Lets the user sign in using a passkey and stores the user metadata in local storage.
@@ -17,7 +18,8 @@ import { CHALLENGE_DURATION_SECONDS } from "@/lib/constants";
  */
 
 export default function LoginPage() {
-  const { refetch: refetchUser } = useSession();
+  const router = useRouter();
+  const searchParams = useSearchParams();
 
   const [nonce] = useState(() => crypto.randomUUID());
 
@@ -71,7 +73,13 @@ export default function LoginPage() {
       return user;
     },
     onSuccess: (user) => {
-      refetchUser();
+      const redirectUrl = searchParams.get("redirect");
+
+      if (redirectUrl) {
+        router.push(decodeURIComponent(redirectUrl));
+      } else {
+        router.push("/");
+      }
     },
   });
 
@@ -96,6 +104,16 @@ export default function LoginPage() {
       {signInMutation.isError && (
         <div>Error: {(signInMutation.error as Error).message}</div>
       )}
+      <div>
+        <Link
+          href={{
+            pathname: "/sign-up",
+            query: { redirect: searchParams.get("redirect") },
+          }}
+        >
+          Don't have an account? Sign up
+        </Link>
+      </div>
     </div>
   );
 }

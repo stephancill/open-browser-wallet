@@ -16,7 +16,12 @@ function AuthLayoutContent({ children }: AuthLayoutProps) {
     if (isLoading) return;
 
     if (isError || !user) {
-      router.push("/login");
+      const currentPath = window.location.pathname;
+      const searchParams = window.location.search;
+
+      const redirectUrl = encodeURIComponent(`${currentPath}${searchParams}`);
+
+      router.push(`/login?redirect=${redirectUrl}`);
     }
   }, [user, isLoading, isError, router]);
 
