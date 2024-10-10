@@ -2,11 +2,15 @@ import { HttpTransport } from "viem";
 import { cookieStorage, createConfig, createStorage, http } from "wagmi";
 import { arbitrum, base, degen, mainnet, optimism } from "wagmi/chains";
 
-export const chains = [mainnet, base, optimism, degen, arbitrum] as const;
+export const chains = [base, optimism, degen, arbitrum, mainnet] as const;
 
 const transports = Object.fromEntries(
   chains.map((chain) => [chain.id, http()])
 ) as { [K in (typeof chains)[number]["id"]]: HttpTransport };
+
+export const transportEndpoints = Object.fromEntries(
+  chains.map((chain) => [chain.id, transports[chain.id]({ chain }).value?.url])
+) as { [K in (typeof chains)[number]["id"]]: string };
 
 export function getConfig() {
   return createConfig({

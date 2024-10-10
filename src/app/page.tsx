@@ -1,6 +1,5 @@
 "use client";
 
-import { useEffect } from "react";
 import { AuthLayout } from "../layouts/AuthLayout";
 import { useSession } from "../providers/SessionProvider";
 import {
@@ -8,7 +7,7 @@ import {
   toWebAuthnAccount,
 } from "viem/account-abstraction";
 import { useClient, useConnect, useAccount } from "wagmi";
-import { passkeyConnector } from "../lib/passkey-wallet-connector";
+import { smartWalletConnector } from "../lib/connector";
 import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 
@@ -35,7 +34,7 @@ export default function Home() {
         owners: [passkeyAccount],
       });
 
-      const burnerConnector = passkeyConnector({
+      const burnerConnector = smartWalletConnector({
         account: smartWallet,
       });
 

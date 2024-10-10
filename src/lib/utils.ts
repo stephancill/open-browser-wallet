@@ -33,10 +33,14 @@ export function createProxyRequestHandler(
 
       const data = await response.text();
 
+      const newHeaders = new Headers(response.headers);
+      newHeaders.delete("host");
+      newHeaders.delete("content-encoding");
+
       return new NextResponse(data, {
         status: response.status,
         statusText: response.statusText,
-        headers: response.headers,
+        headers: newHeaders,
       });
     } catch (error) {
       console.error("Proxy error:", error);

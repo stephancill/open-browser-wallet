@@ -1,13 +1,12 @@
 "use client";
 
+import { getConfig } from "@/lib/wagmi";
+import { SessionProvider } from "@/providers/SessionProvider";
+import { SmartWalletAccountProvider } from "@/providers/SmartWalletAccountProvider";
+import { WalletConnectProvider } from "@/providers/WalletConnectProvider";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { type ReactNode, useState } from "react";
 import { type State, WagmiProvider } from "wagmi";
-
-import { getConfig } from "@/lib/wagmi";
-import { WalletConnectProvider } from "../providers/WalletConnectProvider";
-import { SmartWalletMetadataProvider } from "../providers/SmartWalletMetadataProvider";
-import { SessionProvider } from "../providers/SessionProvider";
 
 export function Providers(props: {
   children: ReactNode;
@@ -19,11 +18,11 @@ export function Providers(props: {
   return (
     <WagmiProvider config={config} initialState={props.initialState}>
       <QueryClientProvider client={queryClient}>
-        <SmartWalletMetadataProvider>
-          <WalletConnectProvider>
-            <SessionProvider>{props.children}</SessionProvider>
-          </WalletConnectProvider>
-        </SmartWalletMetadataProvider>
+        <SessionProvider>
+          <SmartWalletAccountProvider>
+            <WalletConnectProvider>{props.children}</WalletConnectProvider>
+          </SmartWalletAccountProvider>
+        </SessionProvider>
       </QueryClientProvider>
     </WagmiProvider>
   );

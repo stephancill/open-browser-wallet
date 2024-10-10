@@ -53,7 +53,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (isSuccess && user) {
-      router.push("/");
+      // TODO: Only do this if user is on /login or /sign-up
+      // router.push("/");
     }
   }, [isSuccess, user, router]);
 

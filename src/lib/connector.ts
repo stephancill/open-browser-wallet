@@ -54,7 +54,11 @@ const bundlerTransports = Object.fromEntries(
   chains.map((chain) => [chain.id, http(formatBundlerRpcUrl(chain.id))])
 );
 
-export const passkeyConnector = ({ account }: { account: SmartAccount }) => {
+export const smartWalletConnector = ({
+  account,
+}: {
+  account: SmartAccount;
+}) => {
   let connected = true;
   let connectedChainId: number;
 
@@ -76,30 +80,40 @@ export const passkeyConnector = ({ account }: { account: SmartAccount }) => {
       return { accounts, chainId: currentChainId };
     },
     async getProvider({ chainId } = {}) {
-      const chain =
-        config.chains.find((x) => x.id === chainId) ?? config.chains[0];
-
-      const transport =
-        config.transports?.[chain.id] ?? http(chain.rpcUrls.default.http[0]);
-      if (!transport) throw new Error("No transport found for chain");
-
-      const rpcClient = createPublicClient({
-        chain: chain,
-        transport,
-      });
-
-      const bundlerClient = createBundlerClient({
-        chain,
-        account,
-        transport: bundlerTransports[chain.id],
-        userOperation: {
-          async estimateFeesPerGas(parameters) {
-            return rpcClient.estimateFeesPerGas();
-          },
-        },
-      });
-
       const request: EIP1193RequestFn = async ({ method, params }) => {
+        const chain =
+          config.chains.find((x) => x.id === chainId || connectedChainId) ??
+          config.chains[0];
+
+        const transport =
+          config.transports?.[chain.id] ?? http(chain.rpcUrls.default.http[0]);
+        if (!transport) throw new Error("No transport found for chain");
+
+        const rpcClient = createPublicClient({
+          chain: chain,
+          transport,
+        });
+
+        const bundlerClient = createBundlerClient({
+          chain,
+          account,
+          transport: bundlerTransports[chain.id],
+          userOperation: {
+            async estimateFeesPerGas(parameters) {
+              const estimatedFees = await rpcClient.estimateFeesPerGas();
+              return {
+                ...estimatedFees,
+                maxFeePerGas: BigInt(
+                  Math.round(Number(estimatedFees.maxFeePerGas) * 1.12) // pimlico bundler needs a buffer
+                ),
+                maxPriorityFeePerGas: BigInt(
+                  Math.round(Number(estimatedFees.maxPriorityFeePerGas) * 1.12) // pimlico bundler needs a buffer
+                ),
+              };
+            },
+          },
+        });
+
         if (method === "eth_sendTransaction") {
           const actualParams = (params as SendTransactionParameters[])[0];
 
@@ -135,7 +149,12 @@ export const passkeyConnector = ({ account }: { account: SmartAccount }) => {
               },
             ],
           });
-          return hash;
+
+          const tx = await bundlerClient.getUserOperationReceipt({
+            hash,
+          });
+
+          return tx.receipt.transactionHash;
         }
 
         if (method === "personal_sign") {
@@ -145,16 +164,19 @@ export const passkeyConnector = ({ account }: { account: SmartAccount }) => {
           const signature = await account.signMessage({
             message: { raw: rawMessage },
           });
+
           return signature;
         }
 
         if (method === "eth_signTypedData_v4") {
           // first param is address of the signer
           // second param is stringified typed data
-          const stringifiedData = (params as [`0x${string}`, string])[1];
-          const signature = await account.signTypedData(
-            JSON.parse(stringifiedData) as SignTypedDataParameters
-          );
+          const [_, typedData] = params as [
+            `0x${string}`,
+            SignTypedDataParameters,
+          ];
+
+          const signature = await account.signTypedData(typedData);
 
           return signature;
         }

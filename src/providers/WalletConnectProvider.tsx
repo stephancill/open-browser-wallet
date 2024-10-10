@@ -7,9 +7,9 @@ import {
   config,
   walletConnect,
 } from "@/lib/wallet-connect";
-import { useSmartWalletMetadata } from "@/providers/SmartWalletMetadataProvider";
 import { SessionTypes } from "@walletconnect/types";
 import React, { useContext, useEffect, useReducer, useState } from "react";
+import { useAccount } from "wagmi";
 
 interface ISessions {
   [topic: string]: SessionTypes.Struct;
@@ -140,10 +140,10 @@ function useWalletConnectHook() {
   >({});
   const [sessions, dispatch] = useReducer(reducer, {});
 
-  const { smartWalletAddress } = useSmartWalletMetadata();
+  const { address } = useAccount();
 
   useEffect(() => {
-    if (!smartWalletAddress) return;
+    if (!address) return;
 
     async function init(account: string) {
       try {
@@ -159,11 +159,11 @@ function useWalletConnectHook() {
         setIsInitLoading(false);
       }
     }
-    init(smartWalletAddress);
+    init(address);
     return () => {
       walletConnect.unsubscribe();
     };
-  }, [smartWalletAddress]);
+  }, [address]);
 
   useEffect(() => {
     const handleSessionsChanged = (newSessions: ISessions) => {

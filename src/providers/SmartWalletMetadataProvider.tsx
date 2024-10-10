@@ -16,7 +16,7 @@ import {
 import { Hex, padHex } from "viem";
 import { useConnections, useReadContracts } from "wagmi";
 import { coinbaseSmartWalletAbi } from "../abi/coinbaseSmartWallet";
-import { connectorId as passkeyWalletConnectorId } from "../lib/passkey-wallet-connector";
+import { connectorId as passkeyWalletConnectorId } from "../lib/connector";
 
 const smartWalletConnectorId = passkeyWalletConnectorId;
 
