@@ -9,7 +9,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 
 export default function SignUpPage() {
-  const [username, setUsername] = useState("");
+  const [phoneNumber, setPhoneNumber] = useState("");
   const [nonce] = useState(() => crypto.randomUUID());
 
   const router = useRouter();
@@ -42,13 +42,13 @@ export default function SignUpPage() {
   const createAccountMutation = useMutation({
     mutationFn: async ({
       credential,
-      username,
+      phoneNumber,
     }: {
       credential: {
         id: string;
         publicKey: Hex;
       };
-      username: string;
+      phoneNumber: string;
     }) => {
       const response = await fetch("/api/sign-up", {
         method: "POST",
@@ -56,7 +56,7 @@ export default function SignUpPage() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          username,
+          phoneNumber,
           passkeyId: credential.id,
           passkeyPublicKey: credential.publicKey,
           nonce,
@@ -90,11 +90,11 @@ export default function SignUpPage() {
     const credential = await createCredential({
       challenge: hexToBytes(challenge),
       user: {
-        name: username,
+        name: phoneNumber,
       },
     });
-    createAccountMutation.mutate({ credential, username });
-  }, [challenge, createAccountMutation]);
+    createAccountMutation.mutate({ credential, phoneNumber });
+  }, [challenge, createAccountMutation, phoneNumber]);
 
   if (isLoading) return <div>Loading...</div>;
   if (error) return <div>Error: {(error as Error).message}</div>;
@@ -103,18 +103,18 @@ export default function SignUpPage() {
     <div>
       <h1>Sign Up</h1>
       <div>
-        <label htmlFor="username">Username</label>
+        <label htmlFor="phoneNumber">Phone Number</label>
         <input
-          type="text"
-          id="username"
-          value={username}
-          onChange={(e) => setUsername(e.target.value)}
-          placeholder="Enter your username"
+          type="tel"
+          id="phoneNumber"
+          value={phoneNumber}
+          onChange={(e) => setPhoneNumber(e.target.value)}
+          placeholder="Enter your phone number"
         />
       </div>
       <button
         onClick={handleCreateAccount}
-        disabled={createAccountMutation.isPending || !challenge || !username}
+        disabled={createAccountMutation.isPending || !challenge || !phoneNumber}
       >
         {createAccountMutation.isPending
           ? "Creating Account..."

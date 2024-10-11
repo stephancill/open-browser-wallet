@@ -15,7 +15,8 @@ export async function up(db: Kysely<any>): Promise<void> {
     .addColumn("updated_at", "timestamp", (col) =>
       col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`)
     )
-    .addColumn("username", "varchar")
+    .addColumn("phone_number", "varchar")
+    .addColumn("verified_at", "timestamp")
     .execute();
 
   // Add an index on wallet_address for faster lookups
