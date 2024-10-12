@@ -246,11 +246,11 @@ export function ShopView() {
         isOpen={isOpen}
         onClose={() => setOpen(false)}
         className="max-w-[400px] mx-auto"
-        snapPoints={[0.6]}
+        snapPoints={[0.7]}
       >
         <Sheet.Container className="">
           <Sheet.Header />
-          <Sheet.Content>
+          <Sheet.Content className="mb-[100px]">
             {quoteMutation.isSuccess && !purchaseSuccess && (
               <div className="p-4 gap-8 flex flex-col h-full">
                 <div className="text-2xl">Purchase</div>

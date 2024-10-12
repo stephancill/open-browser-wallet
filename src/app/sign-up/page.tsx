@@ -101,7 +101,7 @@ export default function SignUpPage() {
   if (error) return <div>Error: {(error as Error).message}</div>;
 
   return (
-    <div className="flex flex-col min-h-screen">
+    <div className="flex flex-col min-h-[calc(100dvh-65px)]">
       <div className="text-3xl font-bold">Open Browser Wallet</div>
       <div className="flex flex-col gap-8 mt-[80px]">
         <div className="flex flex-col gap-2">
