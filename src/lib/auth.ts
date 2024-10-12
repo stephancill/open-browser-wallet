@@ -30,13 +30,13 @@ export const lucia = new Lucia(adapter, {
   },
 });
 
-export type UserRouteHandler<T extends Record<string, string> = {}> = (
+export type UserRouteHandler<T extends Record<string, object | string> = {}> = (
   req: NextRequest,
   user: NonNullable<Awaited<ReturnType<typeof lucia.validateSession>>["user"]>,
-  params: T
+  context: T
 ) => Promise<Response>;
 
-export function withAuth<T extends Record<string, string> = {}>(
+export function withAuth<T extends Record<string, object | string> = {}>(
   handler: UserRouteHandler<T>,
   {
     requireVerified = true,
@@ -44,10 +44,7 @@ export function withAuth<T extends Record<string, string> = {}>(
     requireVerified?: boolean;
   } = {}
 ) {
-  return async (
-    req: NextRequest,
-    context: { params: T }
-  ): Promise<Response> => {
+  return async (req: NextRequest, context: T): Promise<Response> => {
     try {
       const cookieHeader = req.headers.get("Cookie");
       const authorizationHeader = req.headers.get("Authorization");
@@ -64,7 +61,7 @@ export function withAuth<T extends Record<string, string> = {}>(
         throw new AuthError("User not verified");
       }
 
-      return handler(req, result.user, context.params);
+      return handler(req, result.user, context);
     } catch (error) {
       if (error instanceof AuthError) {
         return NextResponse.json({ error: error.message }, { status: 401 });

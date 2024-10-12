@@ -1,11 +1,12 @@
 import { HttpTransport } from "viem";
-import { cookieStorage, createConfig, createStorage, http } from "wagmi";
-import { arbitrum, base, degen, mainnet, optimism } from "wagmi/chains";
+import { cookieStorage, createConfig, createStorage } from "wagmi";
+import { base } from "wagmi/chains";
+import { getTransportByChainId } from "./utils";
 
-export const chains = [base, optimism, degen, arbitrum, mainnet] as const;
+export const chains = [base] as const;
 
 const transports = Object.fromEntries(
-  chains.map((chain) => [chain.id, http()])
+  chains.map((chain) => [chain.id, getTransportByChainId(chain.id)])
 ) as { [K in (typeof chains)[number]["id"]]: HttpTransport };
 
 export const transportEndpoints = Object.fromEntries(

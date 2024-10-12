@@ -52,7 +52,7 @@ export default function VerifyPhonePage() {
     onSuccess: (data) => {
       if (data.valid) {
         const redirectUrl = searchParams.get("redirect") || "/";
-        router.push(redirectUrl);
+        window.location.href = redirectUrl;
       }
     },
   });

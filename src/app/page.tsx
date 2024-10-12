@@ -10,6 +10,8 @@ import { useClient, useConnect, useAccount } from "wagmi";
 import { smartWalletConnector } from "../lib/connector";
 import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
+import { WalletView } from "../components/WalletView";
+import { ShopView } from "../components/ShopView";
 
 export default function Home() {
   const { user, isLoading: isUserLoading, logout } = useSession();
@@ -64,6 +66,8 @@ export default function Home() {
         <pre>{JSON.stringify(user, null, 2)}</pre>
         <div>Connected: {isWalletLoading ? "Loading..." : account.address}</div>
         <button onClick={logout}>Logout</button>
+        <WalletView />
+        <ShopView />
       </div>
     </AuthLayout>
   );
