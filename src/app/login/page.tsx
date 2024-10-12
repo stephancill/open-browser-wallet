@@ -9,6 +9,7 @@ import { Hex } from "viem";
 import { sign, SignReturnType } from "webauthn-p256";
 import { Button } from "../../components/Button";
 import { useSession } from "../../providers/SessionProvider";
+import { createUUID } from "../../lib/utils";
 
 /**
  * Lets the user sign in using a passkey and stores the user metadata in local storage.
@@ -24,7 +25,7 @@ export default function LoginPage() {
   const searchParams = useSearchParams();
   const { refetch } = useSession();
 
-  const [nonce] = useState(() => crypto.randomUUID());
+  const [nonce] = useState(() => createUUID());
 
   const {
     data: challenge,

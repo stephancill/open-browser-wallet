@@ -8,10 +8,12 @@ import { CHALLENGE_DURATION_SECONDS } from "@/lib/constants";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Button } from "../../components/Button";
+import { createUUID } from "../../lib/utils";
 
 export default function SignUpPage() {
   const [phoneNumber, setPhoneNumber] = useState("");
   const [phoneError, setPhoneError] = useState("");
+  const [nonce] = useState(() => createUUID());
 
   const router = useRouter();
   const searchParams = useSearchParams();
