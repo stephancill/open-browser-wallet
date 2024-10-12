@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Hex, hexToBytes } from "viem";
 import { createCredential } from "webauthn-p256";
@@ -11,7 +11,7 @@ import { Button } from "../../components/Button";
 
 export default function SignUpPage() {
   const [phoneNumber, setPhoneNumber] = useState("");
-  const [nonce] = useState(() => crypto.randomUUID());
+  const [phoneError, setPhoneError] = useState("");
 
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -97,6 +97,21 @@ export default function SignUpPage() {
     createAccountMutation.mutate({ credential, phoneNumber });
   }, [challenge, createAccountMutation, phoneNumber]);
 
+  const isPhoneValid = useMemo(() => {
+    const phoneRegex = /^\+\d{1,2}\d{9}$/;
+    return phoneRegex.test(phoneNumber);
+  }, [phoneNumber]);
+
+  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setPhoneNumber(value);
+    if (value && !isPhoneValid) {
+      setPhoneError("Phone number must start with + followed by 10-11 digits");
+    } else {
+      setPhoneError("");
+    }
+  };
+
   if (isLoading) return <div>Loading...</div>;
   if (error) return <div>Error: {(error as Error).message}</div>;
 
@@ -112,16 +127,19 @@ export default function SignUpPage() {
             type="tel"
             id="phoneNumber"
             value={phoneNumber}
-            onChange={(e) => setPhoneNumber(e.target.value)}
+            onChange={handlePhoneChange}
             placeholder="+27"
-            className="border border-gray-300 rounded-md p-4 text-lg"
+            className={`border ${
+              phoneError ? "border-red-500" : "border-gray-300"
+            } rounded-md p-4 text-lg`}
           />
+          {phoneError && <p className="text-red-500 text-sm">{phoneError}</p>}
         </div>
         <div className="flex flex-col gap-2 items-center">
           <Button
             onClick={handleCreateAccount}
             disabled={
-              createAccountMutation.isPending || !challenge || !phoneNumber
+              createAccountMutation.isPending || !challenge || !isPhoneValid
             }
           >
             {createAccountMutation.isPending
