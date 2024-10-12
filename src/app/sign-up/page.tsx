@@ -9,6 +9,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Button } from "../../components/Button";
 import { createUUID } from "../../lib/utils";
+import { useSession } from "../../providers/SessionProvider";
 
 export default function SignUpPage() {
   const [phoneNumber, setPhoneNumber] = useState("");
@@ -17,6 +18,7 @@ export default function SignUpPage() {
 
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { refetch } = useSession();
 
   const {
     data: challenge,
@@ -77,6 +79,7 @@ export default function SignUpPage() {
       return response.json();
     },
     onSuccess: (user) => {
+      refetch();
       const redirectUrl = searchParams.get("redirect");
 
       if (redirectUrl) {
@@ -119,7 +122,7 @@ export default function SignUpPage() {
 
   return (
     <div className="flex flex-col min-h-[calc(100dvh-65px)]">
-      <div className="text-3xl font-bold">Open Browser Wallet</div>
+      <div className="text-3xl font-bold">Airtime Wallet</div>
       <div className="flex flex-col gap-8 mt-[80px]">
         <div className="flex flex-col gap-2">
           <label className="text-lg" htmlFor="phoneNumber">

@@ -1,4 +1,4 @@
-# Open Browser Wallet
+# Airtime Wallet
 
 A lightweight, but fully featured passkey-based ethereum wallet built on Coinbase Smart Wallet contracts.
 

@@ -4,7 +4,7 @@ import { Providers } from "./providers";
 import Modal from "../components/Modal";
 
 export const metadata: Metadata = {
-  title: "Open Browser Wallet",
+  title: "Airtime Wallet",
   description: "A free, open-source browser wallet for Ethereum.",
 };
 

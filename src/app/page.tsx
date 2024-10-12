@@ -55,7 +55,7 @@ export default function Home() {
   if (!isUserLoading && !user) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[calc(100dvh-65px)] gap-8">
-        <div className="text-3xl font-bold">Open Browser Wallet</div>
+        <div className="text-3xl font-bold">Airtime Wallet</div>
 
         <div className="flex flex-col gap-4 mt-[30px]">
           <Link href="/sign-up" className="hover:no-underline">

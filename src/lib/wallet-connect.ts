@@ -16,7 +16,7 @@ import { EventEmitter } from "events";
 export const config: IWalletConnectConfig = {
   projectId: process.env.NEXT_PUBLIC_WC_PROJECT_ID,
   metadata: {
-    name: "Open Browser Wallet",
+    name: "Airtime Wallet",
     description:
       "An open passkey-based browser wallet similar to keys.coinbase.com",
     url: "https://github.com/stephancill/open-browser-wallet",

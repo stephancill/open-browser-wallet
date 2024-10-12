@@ -68,7 +68,7 @@ export default function VerifyPhonePage() {
 
   return (
     <div className="flex flex-col min-h-[calc(100dvh-65px)]">
-      <div className="text-3xl font-bold">Open Browser Wallet</div>
+      <div className="text-3xl font-bold">Airtime Wallet</div>
       <div className="flex flex-col gap-8 mt-[80px]">
         <h1 className="text-2xl font-semibold">Verify Phone Number</h1>
         <div className="flex flex-col gap-2">
