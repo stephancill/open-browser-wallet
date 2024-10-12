@@ -37,7 +37,7 @@ export const getDbClient = (
       cursor: Cursor,
     }),
     plugins: [new CamelCasePlugin()],
-    log: ["error"],
+    log: ["error", "query"],
   });
 };
 

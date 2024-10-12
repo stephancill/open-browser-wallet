@@ -14,6 +14,8 @@ export async function POST(req: NextRequest) {
     raw: { id: credentialId },
   } = credential;
 
+  console.log("verifying login with", { credential, nonce });
+
   const challenge = (await redis.get(`challenge:${nonce}`)) as Hex | null;
 
   if (!challenge) {

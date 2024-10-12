@@ -6,10 +6,10 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useState } from "react";
 import { Hex } from "viem";
-import { sign, SignReturnType } from "webauthn-p256";
+import { sign, SignReturnType, WebAuthnData } from "webauthn-p256";
 import { Button } from "../../components/Button";
 import { useSession } from "../../providers/SessionProvider";
-import { createUUID } from "../../lib/utils";
+import { createUUID, serializeSignReturnType } from "../../lib/utils";
 
 /**
  * Lets the user sign in using a passkey and stores the user metadata in local storage.
@@ -53,13 +53,21 @@ export default function LoginPage() {
 
   const signInMutation = useMutation({
     mutationFn: async (credential: SignReturnType) => {
+      const credentialToSend: {
+        signature: Hex;
+        webauthn: WebAuthnData;
+        raw: { id: string };
+      } = serializeSignReturnType(credential);
+
       const response = await fetch("/api/login", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          credential,
+          credential: {
+            ...credentialToSend,
+          },
           nonce,
         }),
       });
@@ -86,6 +94,9 @@ export default function LoginPage() {
       } else {
         router.push("/");
       }
+    },
+    onError: (error) => {
+      console.error(error);
     },
   });
 
