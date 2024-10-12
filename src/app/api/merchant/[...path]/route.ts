@@ -2,7 +2,7 @@ import { createProxyRequestHandler } from "@/lib/utils";
 import { withAuth } from "@/lib/auth";
 import jwt from "jsonwebtoken";
 
-export function createJWT(user: object): string {
+function createJWT(user: object): string {
   return jwt.sign(user, process.env.MERCHANT_JWT_SECRET, { expiresIn: "1h" });
 }
 

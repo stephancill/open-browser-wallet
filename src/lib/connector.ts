@@ -27,7 +27,6 @@ import {
 import { hexToBigInt, numberToHex } from "viem/utils";
 import { createConnector } from "wagmi";
 import { chains } from "./wagmi";
-import { base } from "viem/chains";
 
 export class ConnectorNotConnectedError extends BaseError {
   override name = "ConnectorNotConnectedError";
@@ -50,13 +49,8 @@ type Provider = ReturnType<
 export const connectorId = "passkeySmartWallet" as const;
 export const connectorName = "Passkey Smart Wallet" as const;
 
-function formatBundlerRpcUrl(chainId: number) {
-  // API endpoint proxies requests to https://api.pimlico.io
-  return `/api/bundler/v2/${chainId}/rpc`;
-}
-
 const bundlerTransports = Object.fromEntries(
-  chains.map((chain) => [chain.id, http(formatBundlerRpcUrl(chain.id))])
+  chains.map((chain) => [chain.id, http(`/api/bundler/v2/${chain.id}/rpc`)])
 );
 
 const paymasterTransports = Object.fromEntries(

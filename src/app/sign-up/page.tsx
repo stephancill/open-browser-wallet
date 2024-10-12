@@ -7,6 +7,7 @@ import { createCredential } from "webauthn-p256";
 import { CHALLENGE_DURATION_SECONDS } from "@/lib/constants";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
+import { Button } from "../../components/Button";
 
 export default function SignUpPage() {
   const [phoneNumber, setPhoneNumber] = useState("");
@@ -100,38 +101,48 @@ export default function SignUpPage() {
   if (error) return <div>Error: {(error as Error).message}</div>;
 
   return (
-    <div>
-      <h1>Sign Up</h1>
-      <div>
-        <label htmlFor="phoneNumber">Phone Number</label>
-        <input
-          type="tel"
-          id="phoneNumber"
-          value={phoneNumber}
-          onChange={(e) => setPhoneNumber(e.target.value)}
-          placeholder="Enter your phone number"
-        />
-      </div>
-      <button
-        onClick={handleCreateAccount}
-        disabled={createAccountMutation.isPending || !challenge || !phoneNumber}
-      >
-        {createAccountMutation.isPending
-          ? "Creating Account..."
-          : "Create Account"}
-      </button>
-      {createAccountMutation.isError && (
-        <div>Error: {(createAccountMutation.error as Error).message}</div>
-      )}
+    <div className="flex flex-col min-h-screen">
+      <div className="text-3xl font-bold">Open Browser Wallet</div>
+      <div className="flex flex-col gap-8 mt-[80px]">
+        <div className="flex flex-col gap-2">
+          <label className="text-lg" htmlFor="phoneNumber">
+            Sign up with phone number
+          </label>
+          <input
+            type="tel"
+            id="phoneNumber"
+            value={phoneNumber}
+            onChange={(e) => setPhoneNumber(e.target.value)}
+            placeholder="+27"
+            className="border border-gray-300 rounded-md p-4 text-lg"
+          />
+        </div>
+        <div className="flex flex-col gap-2 items-center">
+          <Button
+            onClick={handleCreateAccount}
+            disabled={
+              createAccountMutation.isPending || !challenge || !phoneNumber
+            }
+          >
+            {createAccountMutation.isPending
+              ? "Creating Account..."
+              : "Create Account"}
+          </Button>
+          {createAccountMutation.isError && (
+            <div>Error: {(createAccountMutation.error as Error).message}</div>
+          )}
 
-      <Link
-        href={{
-          pathname: "/sign-up",
-          query: { redirect: searchParams.get("redirect") },
-        }}
-      >
-        Login
-      </Link>
+          <Link
+            href={{
+              pathname: "/login",
+              query: { redirect: searchParams.get("redirect") },
+            }}
+            className="text-gray-500"
+          >
+            Already have an account? Sign in
+          </Link>
+        </div>
+      </div>
     </div>
   );
 }

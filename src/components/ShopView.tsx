@@ -1,7 +1,10 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import React, { useState } from "react";
-import { Address, erc20Abi } from "viem";
+import { Address, erc20Abi, formatUnits } from "viem";
 import { useAccount, useWriteContract } from "wagmi";
+import { Button } from "./Button";
+import { Sheet } from "react-modal-sheet";
+import { useSession } from "../providers/SessionProvider";
 
 type Product = {
   id: string;
@@ -59,6 +62,7 @@ export type Quote = {
     decimals: number;
     chainId: number;
     amount: string;
+    symbol: string;
   };
   paymentDestination: Address;
   expiresAt: string;
@@ -77,6 +81,7 @@ type QuoteResponse = {
     types: any;
     domain: any;
   };
+  product: Product;
 };
 
 const fetchQuote = async (
@@ -124,8 +129,11 @@ const fulfillOrder = async ({
 };
 
 export function ShopView() {
-  const { writeContractAsync } = useWriteContract();
+  const { writeContractAsync, isPending: isWriteContractPending } =
+    useWriteContract();
   const { address } = useAccount();
+  const [isOpen, setOpen] = useState(false);
+  const { user } = useSession();
 
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [quantity, setQuantity] = useState(1);
@@ -144,7 +152,14 @@ export function ShopView() {
     Error,
     { productId: string; quantity: number }
   >({
-    mutationFn: ({ productId, quantity }) => fetchQuote(productId, quantity),
+    mutationFn: ({ productId, quantity }) => {
+      if (!user?.phoneNumber) throw new Error("Missing phone number");
+
+      return fetchQuote(productId, quantity, {
+        phoneNumber: user.phoneNumber,
+      });
+    },
+    onSuccess: () => setOpen(true),
   });
 
   const fulfillMutation = useMutation<
@@ -158,6 +173,8 @@ export function ShopView() {
     },
   });
 
+  const [purchaseSuccess, setPurchaseSuccess] = useState(false);
+
   const handleGetQuote = (product: Product) => {
     setSelectedProduct(product);
     quoteMutation.mutate({ productId: product.id, quantity });
@@ -167,6 +184,7 @@ export function ShopView() {
     quoteMutation.reset();
     setSelectedProduct(null);
     setQuantity(1);
+    setOpen(false);
   };
 
   const handleBuy = async () => {
@@ -188,84 +206,127 @@ export function ShopView() {
         transactionHash: hash,
       });
 
-      // Handle successful purchase (e.g., show a success message, reset the form, etc.)
-      alert("Purchase successful!");
-      handleClearQuote();
+      // Set purchase success state
+      setPurchaseSuccess(true);
     } catch (error) {
       console.error("Error during purchase:", error);
-      alert("Purchase failed. Please try again.");
+      // alert("Purchase failed. Please try again.");
     }
+  };
+
+  const handleBackFromSuccess = () => {
+    setPurchaseSuccess(false);
+    handleClearQuote();
   };
 
   if (isLoading) return <div>Loading...</div>;
   if (error) return <div>Error: {error.message}</div>;
 
   return (
-    <div>
-      <h1>Merchant Products</h1>
-      {!quoteMutation.isSuccess && (
-        <div className="flex flex-wrap gap-4">
-          {productsData?.products.map((product) => (
-            <div key={product.id} className="border border-gray-300 p-4">
-              <img src={product.image} alt={product.name} className="w-20" />
-              <h2>{product.name}</h2>
-              <p>{product.description}</p>
-              <p>
-                Price: {product.price_min} - {product.price_max}{" "}
-                {product.price_currency_code}
-              </p>
-              <p>Partner: {product.partner.name}</p>
-              <input
-                type="number"
-                min="1"
-                value={quantity}
-                onChange={(e) => setQuantity(parseInt(e.target.value))}
-                className="border border-gray-300 p-1 mt-2"
-              />
-              <button
-                onClick={() => handleGetQuote(product)}
-                className="bg-blue-500 text-white px-4 py-2 mt-2"
-              >
-                Get Quote
-              </button>
-            </div>
-          ))}
-        </div>
-      )}
-      {quoteMutation.isPending && <div>Fetching quote...</div>}
+    <div className="flex flex-col gap-4">
+      <div className="text-2xl ml-4">Shop</div>
+      <div className="flex flex-row overflow-x-scroll gap-4 ">
+        {productsData?.products.map((product, i) => (
+          <div key={product.id} className={i === 0 ? "ml-4" : ""}>
+            <button
+              key={product.id}
+              className="w-[150px]"
+              onClick={() => handleGetQuote(product)}
+            >
+              <ProductCard product={product} />
+            </button>
+          </div>
+        ))}
+      </div>
       {quoteMutation.isError && (
         <div>Error fetching quote: {quoteMutation.error.message}</div>
       )}
-      {quoteMutation.isSuccess && (
-        <div className="mt-4 p-4 border border-gray-300">
-          <h2>Quote for {selectedProduct?.name}</h2>
-          <p>Quote ID: {quoteMutation.data.quote.id}</p>
-          <p>Token Amount: {quoteMutation.data.quote.tokenQuote.amount}</p>
-          <p>
-            Expires At:{" "}
-            {new Date(quoteMutation.data.quote.expiresAt).toLocaleString()}
-          </p>
-          <p>Status: {quoteMutation.data.quote.status}</p>
-          <button
-            onClick={handleBuy}
-            className="bg-green-500 text-white px-4 py-2 mt-4 mr-2"
-            disabled={fulfillMutation.isPending}
-          >
-            {fulfillMutation.isPending ? "Processing..." : "Buy Now"}
-          </button>
-          <button
-            onClick={handleClearQuote}
-            className="bg-gray-500 text-white px-4 py-2 mt-4"
-          >
-            Back to Products
-          </button>
-        </div>
-      )}
-      {fulfillMutation.isError && (
-        <div className="mt-4 text-red-500">
-          Error fulfilling order: {fulfillMutation.error.message}
-        </div>
-      )}
+
+      <Sheet
+        isOpen={isOpen}
+        onClose={() => setOpen(false)}
+        className="max-w-[400px] mx-auto"
+        snapPoints={[0.6]}
+      >
+        <Sheet.Container className="">
+          <Sheet.Header />
+          <Sheet.Content>
+            {quoteMutation.isSuccess && !purchaseSuccess && (
+              <div className="p-4 gap-8 flex flex-col h-full">
+                <div className="text-2xl">Purchase</div>
+                <div className="flex items-center justify-center">
+                  <ProductCard
+                    className="w-[150px]"
+                    product={quoteMutation.data.product}
+                  />
+                </div>
+                <div className="mt-auto">
+                  <div className="flex flex-row gap-2">
+                    <Button onClick={handleClearQuote} variant="secondary">
+                      Back
+                    </Button>
+                    <Button
+                      onClick={handleBuy}
+                      disabled={
+                        fulfillMutation.isPending || isWriteContractPending
+                      }
+                    >
+                      {fulfillMutation.isPending || isWriteContractPending
+                        ? "Processing..."
+                        : `Pay $${formatUnits(
+                            BigInt(quoteMutation.data.quote.tokenQuote.amount),
+                            quoteMutation.data.quote.tokenQuote.decimals
+                          )}`}
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
+            {purchaseSuccess && (
+              <div className="p-4 gap-8 flex flex-col h-full">
+                <div className="text-2xl">Purchase Successful!</div>
+                <div className="flex items-center justify-center">
+                  <ProductCard
+                    className="w-[150px]"
+                    product={quoteMutation.data!.product}
+                  />
+                </div>
+                <div className="mt-auto">
+                  <Button onClick={handleBackFromSuccess}>Back</Button>
+                </div>
+              </div>
+            )}
+            {fulfillMutation.isError && (
+              <div className="mt-4 text-red-500">
+                Error fulfilling order: {fulfillMutation.error.message}
+              </div>
+            )}
+          </Sheet.Content>
+        </Sheet.Container>
+        <Sheet.Backdrop />
+      </Sheet>
+    </div>
+  );
+}
+
+function ProductCard({
+  product,
+  className,
+}: {
+  product: Product;
+  className?: string;
+}) {
+  return (
+    <div
+      className={`flex flex-col items-center justify-center text-center ${className ?? ""}`}
+    >
+      <img
+        src={product.image}
+        alt={product.name}
+        className="w-full rounded-lg border border-gray-300"
+      />
+      <div>{product.name}</div>
+      <div>{product.description}</div>
     </div>
   );
 }

@@ -7,6 +7,8 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useState } from "react";
 import { Hex } from "viem";
 import { sign, SignReturnType } from "webauthn-p256";
+import { Button } from "../../components/Button";
+import { useSession } from "../../providers/SessionProvider";
 
 /**
  * Lets the user sign in using a passkey and stores the user metadata in local storage.
@@ -20,6 +22,7 @@ import { sign, SignReturnType } from "webauthn-p256";
 export default function LoginPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { refetch } = useSession();
 
   const [nonce] = useState(() => crypto.randomUUID());
 
@@ -73,6 +76,8 @@ export default function LoginPage() {
       return user;
     },
     onSuccess: (user) => {
+      refetch();
+
       const redirectUrl = searchParams.get("redirect");
 
       if (redirectUrl) {
@@ -92,6 +97,31 @@ export default function LoginPage() {
 
   if (isLoading) return <div>Loading...</div>;
   if (error) return <div>Error: {(error as Error).message}</div>;
+
+  return (
+    <div className="flex flex-col items-center justify-center min-h-screen gap-8">
+      <div className="text-3xl font-bold">Open Browser Wallet</div>
+
+      <div className="flex flex-col gap-4 mt-[30px]">
+        <Button onClick={() => signInWithPasskey()}>
+          <div className="text-xl">
+            {signInMutation.isPending
+              ? "Signing in..."
+              : "Sign in with passkey"}
+          </div>
+        </Button>
+        <Link
+          href={{
+            pathname: "/sign-up",
+            query: { redirect: searchParams.get("redirect") },
+          }}
+          className="text-gray-500"
+        >
+          Don't have an account? Sign up
+        </Link>
+      </div>
+    </div>
+  );
 
   return (
     <div>

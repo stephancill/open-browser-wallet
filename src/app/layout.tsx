@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { Providers } from "./providers";
+import Modal from "../components/Modal";
 
 export const metadata: Metadata = {
   title: "Open Browser Wallet",
@@ -14,7 +15,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body>
+      <body className="w-full max-w-[400px] mx-auto min-h-screen">
         <Providers>{children}</Providers>
       </body>
     </html>

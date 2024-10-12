@@ -71,3 +71,7 @@ export function getTransportByChainId(chainId: number) {
     return http();
   }
 }
+
+export function truncateAddress(address: string) {
+  return `${address.slice(0, 6)}...${address.slice(-4)}`;
+}
