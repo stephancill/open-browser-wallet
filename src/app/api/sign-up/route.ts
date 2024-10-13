@@ -1,16 +1,29 @@
-import { NextRequest } from "next/server";
+import { lucia } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { redis } from "@/lib/redis";
-import { createPublicClient, Hex, http } from "viem";
+import { NextRequest } from "next/server";
+import { Address, createPublicClient, getAddress, Hex, http } from "viem";
 import {
+  createBundlerClient,
   toCoinbaseSmartAccount,
   toWebAuthnAccount,
 } from "viem/account-abstraction";
 import { base } from "viem/chains";
-import { lucia } from "@/lib/auth";
+import { COINBASE_SMART_WALLET_PROXY_BYTECODE } from "@/lib/constants";
+import {
+  getAddOwnerTransactions,
+  getUserOpsFromTransaction,
+} from "@/lib/utils";
+import { UserRow } from "@/types/db";
 
 export async function POST(req: NextRequest) {
-  const { username, passkeyId, passkeyPublicKey, nonce } = await req.json();
+  const {
+    username,
+    passkeyId,
+    passkeyPublicKey,
+    nonce,
+    walletAddress: walletAddressRaw,
+  } = await req.json();
 
   // Validate the challenge
   const challenge = (await redis.get(`challenge:${nonce}`)) as Hex | null;
@@ -34,17 +47,83 @@ export async function POST(req: NextRequest) {
     chain: base,
     transport: http(),
   });
-  const account = await toCoinbaseSmartAccount({
-    owners: [
-      toWebAuthnAccount({
-        credential: {
-          id: passkeyId,
-          publicKey: passkeyPublicKey,
-        },
-      }),
-    ],
-    client: baseClient,
-  });
+
+  let walletAddress: Address;
+  let importedAccountData: UserRow["importedAccountData"] | undefined;
+
+  if (walletAddressRaw) {
+    console.log(
+      "wallet address raw",
+      walletAddressRaw,
+      getAddress(walletAddressRaw)
+    );
+
+    walletAddress = getAddress(walletAddressRaw);
+    const code = await baseClient.getCode({
+      address: walletAddress,
+    });
+
+    const isCoinbaseSmartWallet = code === COINBASE_SMART_WALLET_PROXY_BYTECODE;
+
+    if (!isCoinbaseSmartWallet) {
+      return Response.json(
+        { error: "Wallet is not a Coinbase Smart Wallet" },
+        { status: 400 }
+      );
+    }
+
+    // TODO: Check implementation code at storage
+
+    const [deployTransaction, ...addOwnerTransactions] =
+      await getAddOwnerTransactions({
+        address: walletAddress,
+        chainId: base.id,
+      });
+
+    const bundlerClient = createBundlerClient({
+      chain: base,
+      transport: http(
+        `https://api.pimlico.io/v2/${base.id}/rpc?apikey=${process.env.PIMLICO_API_KEY}`
+      ),
+    });
+
+    // TODO: Simulate all userOps to see which one results in deployed contract, for now we assume it's the first one (might be possible to do offline)
+    const deployUserOp = (
+      await getUserOpsFromTransaction({
+        bundlerClient,
+        // @ts-ignore -- idk
+        client: baseClient,
+        transactionHash: deployTransaction.transactionHash,
+      })
+    ).find((userOp) => userOp.userOperation.initCode);
+
+    if (!deployUserOp) {
+      return Response.json(
+        { error: "Failed to get deploy user op" },
+        { status: 500 }
+      );
+    }
+
+    const initCode = deployUserOp.userOperation.initCode!;
+
+    importedAccountData = {
+      addOwnerTransactions,
+      initCode,
+    };
+  } else {
+    const account = await toCoinbaseSmartAccount({
+      owners: [
+        toWebAuthnAccount({
+          credential: {
+            id: passkeyId,
+            publicKey: passkeyPublicKey,
+          },
+        }),
+      ],
+      client: baseClient,
+    });
+    walletAddress = account.address;
+  }
 
   // Create the new user
   const newUser = await db
@@ -53,7 +132,8 @@ export async function POST(req: NextRequest) {
       username,
       passkeyId,
       passkeyPublicKey,
-      walletAddress: account.address,
+      walletAddress,
+      importedAccountData,
     })
     .returningAll()
     .executeTakeFirst();

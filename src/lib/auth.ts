@@ -25,6 +25,7 @@ export const lucia = new Lucia(adapter, {
       createdAt: attributes.created_at,
       updatedAt: attributes.updated_at,
       username: attributes.username,
+      importedAccountData: attributes.imported_account_data,
     };
   },
 });
@@ -77,6 +78,14 @@ declare module "lucia" {
       created_at: Date;
       updated_at: Date;
       username: string | null;
+      imported_account_data: {
+        initCode: Hex;
+        replayableUserOps?: Hex[];
+        addOwnerTransactions: {
+          transactionHash: Hex;
+          owner: Hex;
+        }[];
+      } | null;
     };
   }
 }

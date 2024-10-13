@@ -1,18 +1,26 @@
+import { coinbaseSmartWalletAbi } from "@/abi/coinbaseSmartWallet";
+import { smartWalletConnector } from "@/lib/connector";
 import { useQuery } from "@tanstack/react-query";
-import { createContext, ReactNode, useContext } from "react";
+import { createContext, ReactNode, useContext, useMemo } from "react";
+import { Hex, padHex } from "viem";
 import {
   SmartAccount,
   toCoinbaseSmartAccount,
   toWebAuthnAccount,
 } from "viem/account-abstraction";
-import { useClient, useConnect } from "wagmi";
-import { smartWalletConnector } from "../lib/connector";
+import {
+  useClient,
+  useConnect,
+  useReadContract,
+  useReadContracts,
+} from "wagmi";
 import { useSession } from "./SessionProvider";
 
 interface SmartWalletAccountType {
   smartWalletAccount: SmartAccount | undefined | null;
   isLoading: boolean;
   error: Error | null;
+  ownerIndex: number | undefined;
 }
 
 const SmartWalletAccountContext = createContext<
@@ -28,6 +36,43 @@ export function SmartWalletAccountProvider({
   const client = useClient();
   const { connectAsync } = useConnect();
 
+  const { data: ownerCount, isLoading: isOwnerCountLoading } = useReadContract({
+    abi: coinbaseSmartWalletAbi,
+    address: user?.walletAddress,
+    functionName: "ownerCount",
+    args: [],
+    query: {
+      enabled: !!user?.importedAccountData,
+    },
+  });
+
+  const { data: ownersResult, refetch: refetchOwners } = useReadContracts({
+    contracts: !!ownerCount
+      ? Array.from({ length: Number(ownerCount) }, (_, i) => ({
+          abi: coinbaseSmartWalletAbi,
+          address: user?.walletAddress,
+          functionName: "ownerAtIndex",
+          args: [i],
+        }))
+      : undefined,
+    query: {
+      enabled: !!user?.importedAccountData && !!ownerCount,
+    },
+  });
+
+  const owners = ownersResult?.map((owner) => owner.result as Hex);
+
+  const ownerIndex = useMemo(() => {
+    if (!user?.passkeyPublicKey) return undefined;
+
+    if (!user.importedAccountData) return 0; // Wallets created natively always have index 0
+
+    return owners?.findIndex(
+      (owner) =>
+        owner === padHex(user.passkeyPublicKey, { size: 64 }).toLowerCase()
+    );
+  }, [owners, user?.passkeyPublicKey]);
+
   const {
     isLoading: isWalletLoading,
     data: smartWalletAccount,
@@ -37,6 +82,8 @@ export function SmartWalletAccountProvider({
     queryFn: async () => {
       if (!user) return null;
 
+      if (user.importedAccountData && ownerIndex === undefined) return null;
+
       const passkeyAccount = toWebAuthnAccount({
         credential: {
           id: user.passkeyId,
@@ -45,8 +92,11 @@ export function SmartWalletAccountProvider({
       });
 
       const smartWallet = await toCoinbaseSmartAccount({
+        address: user.walletAddress,
         client,
         owners: [passkeyAccount],
+        // @ts-ignore -- patched into viem
+        signatureOwnerIndex: ownerIndex,
       });
 
       const burnerConnector = smartWalletConnector({
@@ -66,8 +116,12 @@ export function SmartWalletAccountProvider({
     <SmartWalletAccountContext.Provider
       value={{
         smartWalletAccount,
-        isLoading: isWalletLoading || isUserLoading,
+        isLoading:
+          isWalletLoading ||
+          isUserLoading ||
+          (!!user?.importedAccountData && isOwnerCountLoading),
         error: smartWalletError,
+        ownerIndex,
       }}
     >
       {children}

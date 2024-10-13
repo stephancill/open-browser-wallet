@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { SessionProvider, useSession } from "../providers/SessionProvider";
+import { useSmartWalletAccount } from "../providers/SmartWalletAccountProvider";
 
 interface AuthLayoutProps {
   children: React.ReactNode;
@@ -11,6 +12,11 @@ interface AuthLayoutProps {
 function AuthLayoutContent({ children }: AuthLayoutProps) {
   const router = useRouter();
   const { user, isLoading, isError } = useSession();
+  const {
+    ownerIndex,
+    isLoading: isSmartWalletLoading,
+    error: smartWalletError,
+  } = useSmartWalletAccount();
 
   useEffect(() => {
     if (isLoading) return;
@@ -23,7 +29,11 @@ function AuthLayoutContent({ children }: AuthLayoutProps) {
 
       router.push(`/login?redirect=${redirectUrl}`);
     }
-  }, [user, isLoading, isError, router]);
+
+    if (user && user.importedAccountData && ownerIndex === -1) {
+      router.push("/import/complete");
+    }
+  }, [user, isLoading, isError, router, ownerIndex]);
 
   if (isLoading) {
     return <div>Loading...</div>;
