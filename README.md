@@ -30,10 +30,16 @@ Run the docker services (PostgreSQL, Redis)
 docker compose up -d
 ```
 
-Install dependencies and run the Next.js app
+Install dependencies and setup the database.
 
 ```
 pnpm install
+pnpm run migrate
+```
+
+Run the Next.js app
+
+```
 pnpm run dev
 ```
 
