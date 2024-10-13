@@ -1,6 +1,8 @@
 "use client";
 
 import { CHALLENGE_DURATION_SECONDS } from "@/lib/constants";
+import { serializeSignReturnType } from "@/lib/utils";
+import { useSession } from "@/providers/SessionProvider";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -20,6 +22,7 @@ import { sign, SignReturnType } from "webauthn-p256";
 export default function LoginPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { refetch } = useSession();
 
   const [nonce] = useState(() => crypto.randomUUID());
 
@@ -49,13 +52,15 @@ export default function LoginPage() {
 
   const signInMutation = useMutation({
     mutationFn: async (credential: SignReturnType) => {
+      const serializedCredential = serializeSignReturnType(credential);
+
       const response = await fetch("/api/login", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          credential,
+          credential: serializedCredential,
           nonce,
         }),
       });
@@ -73,6 +78,8 @@ export default function LoginPage() {
       return user;
     },
     onSuccess: (user) => {
+      refetch();
+
       const redirectUrl = searchParams.get("redirect");
 
       if (redirectUrl) {
@@ -80,6 +87,9 @@ export default function LoginPage() {
       } else {
         router.push("/");
       }
+    },
+    onError: (error) => {
+      console.error(error);
     },
   });
 

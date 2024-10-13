@@ -1,19 +1,22 @@
 "use client";
 
-import { useState, useCallback } from "react";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { CHALLENGE_DURATION_SECONDS } from "@/lib/constants";
+import { createUUID } from "@/lib/utils";
+import { useSession } from "@/providers/SessionProvider";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useCallback, useState } from "react";
 import { Hex, hexToBytes } from "viem";
 import { createCredential } from "webauthn-p256";
-import { CHALLENGE_DURATION_SECONDS } from "@/lib/constants";
-import { useRouter, useSearchParams } from "next/navigation";
-import Link from "next/link";
 
 export default function SignUpPage() {
   const [username, setUsername] = useState("");
-  const [nonce] = useState(() => crypto.randomUUID());
+  const [nonce] = useState(() => createUUID());
 
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { refetch } = useSession();
 
   const {
     data: challenge,
@@ -74,6 +77,7 @@ export default function SignUpPage() {
       return response.json();
     },
     onSuccess: (user) => {
+      refetch();
       const redirectUrl = searchParams.get("redirect");
 
       if (redirectUrl) {
