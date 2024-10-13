@@ -1,4 +1,4 @@
-# Airtime Wallet
+# Open Browser Wallet
 
 A lightweight, but fully featured passkey-based ethereum wallet built on Coinbase Smart Wallet contracts.
 
@@ -8,9 +8,13 @@ A lightweight, but fully featured passkey-based ethereum wallet built on Coinbas
 - Connect to apps with Coinbase Wallet SDK, Mobile Wallet Protocol, and WalletConnect
 - Supports most common wallet features (sign messages, sign transactions, etc.)
 - Multichain support
-- Paymaster support
-- Phone number verification
-- A store based on [Onchain Merchant](https://github.com/stephancill/onchain-merchant) with offchain fulfillment
+
+### Planned
+
+- [ ] Paymaster support
+- [ ] Phone number login example
+- [ ] No backend example
+- [ ] Payment intents
 
 ## Development
 

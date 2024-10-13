@@ -19,11 +19,7 @@ import {
   http,
   SwitchChainError,
 } from "viem";
-import {
-  createBundlerClient,
-  createPaymasterClient,
-  SmartAccount,
-} from "viem/account-abstraction";
+import { createBundlerClient, SmartAccount } from "viem/account-abstraction";
 import { hexToBigInt, numberToHex } from "viem/utils";
 import { createConnector } from "wagmi";
 import { chains } from "./wagmi";
@@ -51,10 +47,6 @@ export const connectorName = "Passkey Smart Wallet" as const;
 
 const bundlerTransports = Object.fromEntries(
   chains.map((chain) => [chain.id, http(`/api/bundler/v2/${chain.id}/rpc`)])
-);
-
-const paymasterTransports = Object.fromEntries(
-  chains.map((chain) => [chain.id, http(`/api/paymaster?chainId=${chain.id}`)])
 );
 
 export const smartWalletConnector = ({
@@ -97,15 +89,10 @@ export const smartWalletConnector = ({
           transport,
         });
 
-        const paymasterClient = createPaymasterClient({
-          transport: bundlerTransports[chain.id],
-        });
-
         const bundlerClient = createBundlerClient({
           chain,
           account,
           transport: bundlerTransports[chain.id],
-          paymaster: paymasterClient,
           userOperation: {
             async estimateFeesPerGas(parameters) {
               const estimatedFees = await rpcClient.estimateFeesPerGas();

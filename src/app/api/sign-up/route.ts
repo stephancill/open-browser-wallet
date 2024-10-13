@@ -10,7 +10,7 @@ import { base } from "viem/chains";
 import { lucia } from "@/lib/auth";
 
 export async function POST(req: NextRequest) {
-  const { phoneNumber, passkeyId, passkeyPublicKey, nonce } = await req.json();
+  const { username, passkeyId, passkeyPublicKey, nonce } = await req.json();
 
   // Validate the challenge
   const challenge = (await redis.get(`challenge:${nonce}`)) as Hex | null;
@@ -19,19 +19,15 @@ export async function POST(req: NextRequest) {
     return Response.json({ error: "Challenge not found" }, { status: 404 });
   }
 
-  // Check if the phone number is already registered
+  // Check if the username is already taken
   const existingUser = await db
     .selectFrom("users")
-    .where("phoneNumber", "=", phoneNumber)
-    .where("verifiedAt", "is not", null)
+    .where("username", "=", username)
     .selectAll()
     .executeTakeFirst();
 
   if (existingUser) {
-    return Response.json(
-      { error: "Phone number already exists" },
-      { status: 400 }
-    );
+    return Response.json({ error: "Username already exists" }, { status: 400 });
   }
 
   const baseClient = createPublicClient({
@@ -54,7 +50,7 @@ export async function POST(req: NextRequest) {
   const newUser = await db
     .insertInto("users")
     .values({
-      phoneNumber,
+      username,
       passkeyId,
       passkeyPublicKey,
       walletAddress: account.address,

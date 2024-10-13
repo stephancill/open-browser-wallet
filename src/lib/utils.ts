@@ -62,11 +62,8 @@ export function createProxyRequestHandler(
 }
 
 export function getTransportByChainId(chainId: number) {
+  // TODO: Expose on client side
   if (process.env[`EVM_RPC_URL_${chainId}`]) {
-    console.log(
-      `Using custom RPC URL for chain ${chainId}`,
-      process.env[`EVM_RPC_URL_${chainId}`]
-    );
     return fallback([http(process.env[`EVM_RPC_URL_${chainId}`]), http()]);
   } else {
     return http();

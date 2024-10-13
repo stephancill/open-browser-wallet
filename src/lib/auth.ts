@@ -24,8 +24,7 @@ export const lucia = new Lucia(adapter, {
       passkeyPublicKey: attributes.passkey_public_key,
       createdAt: attributes.created_at,
       updatedAt: attributes.updated_at,
-      phoneNumber: attributes.phone_number,
-      verifiedAt: attributes.verified_at,
+      username: attributes.username,
     };
   },
 });
@@ -38,11 +37,7 @@ export type UserRouteHandler<T extends Record<string, object | string> = {}> = (
 
 export function withAuth<T extends Record<string, object | string> = {}>(
   handler: UserRouteHandler<T>,
-  {
-    requireVerified = true,
-  }: {
-    requireVerified?: boolean;
-  } = {}
+  options: {} = {}
 ) {
   return async (req: NextRequest, context: T): Promise<Response> => {
     try {
@@ -55,10 +50,6 @@ export function withAuth<T extends Record<string, object | string> = {}>(
       const result = await lucia.validateSession(token ?? "");
       if (!result.session) {
         throw new AuthError("Invalid session");
-      }
-
-      if (requireVerified && !result.user.verifiedAt) {
-        throw new AuthError("User not verified");
       }
 
       return handler(req, result.user, context);
@@ -85,8 +76,7 @@ declare module "lucia" {
       passkey_public_key: Hex;
       created_at: Date;
       updated_at: Date;
-      phone_number: string;
-      verified_at: Date | null;
+      username: string | null;
     };
   }
 }

@@ -1,15 +1,14 @@
 "use client";
 
 import { CHALLENGE_DURATION_SECONDS } from "@/lib/constants";
+import { serializeSignReturnType } from "@/lib/utils";
+import { useSession } from "@/providers/SessionProvider";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useState } from "react";
 import { Hex } from "viem";
-import { sign, SignReturnType, WebAuthnData } from "webauthn-p256";
-import { Button } from "../../components/Button";
-import { useSession } from "../../providers/SessionProvider";
-import { createUUID, serializeSignReturnType } from "../../lib/utils";
+import { sign, SignReturnType } from "webauthn-p256";
 
 /**
  * Lets the user sign in using a passkey and stores the user metadata in local storage.
@@ -25,7 +24,7 @@ export default function LoginPage() {
   const searchParams = useSearchParams();
   const { refetch } = useSession();
 
-  const [nonce] = useState(() => createUUID());
+  const [nonce] = useState(() => crypto.randomUUID());
 
   const {
     data: challenge,
@@ -53,11 +52,7 @@ export default function LoginPage() {
 
   const signInMutation = useMutation({
     mutationFn: async (credential: SignReturnType) => {
-      const credentialToSend: {
-        signature: Hex;
-        webauthn: WebAuthnData;
-        raw: { id: string };
-      } = serializeSignReturnType(credential);
+      const serializedCredential = serializeSignReturnType(credential);
 
       const response = await fetch("/api/login", {
         method: "POST",
@@ -65,9 +60,7 @@ export default function LoginPage() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          credential: {
-            ...credentialToSend,
-          },
+          credential: serializedCredential,
           nonce,
         }),
       });
@@ -109,31 +102,6 @@ export default function LoginPage() {
 
   if (isLoading) return <div>Loading...</div>;
   if (error) return <div>Error: {(error as Error).message}</div>;
-
-  return (
-    <div className="flex flex-col items-center justify-center min-h-[calc(100dvh-65px)] gap-8">
-      <div className="text-3xl font-bold">Airtime Wallet</div>
-
-      <div className="flex flex-col gap-4 mt-[30px]">
-        <Button onClick={() => signInWithPasskey()}>
-          <div className="text-xl">
-            {signInMutation.isPending
-              ? "Signing in..."
-              : "Sign in with passkey"}
-          </div>
-        </Button>
-        <Link
-          href={{
-            pathname: "/sign-up",
-            query: { redirect: searchParams.get("redirect") },
-          }}
-          className="text-gray-500"
-        >
-          Don't have an account? Sign up
-        </Link>
-      </div>
-    </div>
-  );
 
   return (
     <div>

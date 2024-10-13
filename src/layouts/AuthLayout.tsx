@@ -14,17 +14,14 @@ function AuthLayoutContent({ children }: AuthLayoutProps) {
 
   useEffect(() => {
     if (isLoading) return;
-    const currentPath = window.location.pathname;
-    const searchParams = window.location.search;
-
-    const redirectUrl = encodeURIComponent(`${currentPath}${searchParams}`);
 
     if (isError || !user) {
-      router.push(`/login?redirect=${redirectUrl}`);
-    }
+      const currentPath = window.location.pathname;
+      const searchParams = window.location.search;
 
-    if (user && !user.verifiedAt) {
-      router.push(`/sign-up/verify?redirect=${redirectUrl}`);
+      const redirectUrl = encodeURIComponent(`${currentPath}${searchParams}`);
+
+      router.push(`/login?redirect=${redirectUrl}`);
     }
   }, [user, isLoading, isError, router]);
 

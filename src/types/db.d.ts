@@ -8,8 +8,7 @@ export type UserRow = {
   passkeyPublicKey: Hex;
   createdAt: Generated<Date>;
   updatedAt: Generated<Date>;
-  phoneNumber: string;
-  verifiedAt: Date | null;
+  username: string | null;
 };
 
 export interface UserSessionTable {
