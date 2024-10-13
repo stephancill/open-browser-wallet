@@ -1,6 +1,6 @@
 import { HttpTransport } from "viem";
 import { cookieStorage, createConfig, createStorage } from "wagmi";
-import { base } from "wagmi/chains";
+import { base, mainnet } from "wagmi/chains";
 import { getTransportByChainId } from "./utils";
 
 export const chains = [base] as const;
