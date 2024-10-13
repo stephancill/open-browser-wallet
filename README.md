@@ -8,13 +8,9 @@ A lightweight, but fully featured passkey-based ethereum wallet built on Coinbas
 - Connect to apps with Coinbase Wallet SDK, Mobile Wallet Protocol, and WalletConnect
 - Supports most common wallet features (sign messages, sign transactions, etc.)
 - Multichain support
-
-### Planned
-
-- [ ] Paymaster support
-- [ ] Phone number login example
-- [ ] No backend example
-- [ ] Payment intents
+- Paymaster support
+- Phone number verification
+- A store based on [Onchain Merchant](https://github.com/stephancill/onchain-merchant) with offchain fulfillment
 
 ## Development
 
