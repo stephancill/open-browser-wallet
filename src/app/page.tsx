@@ -51,8 +51,12 @@ export default function Home() {
   if (!isUserLoading && !user) {
     return (
       <div>
-        <Link href="/login">Login</Link>
-        <Link href="/sign-up">Sign Up</Link>
+        <div>
+          <Link href="/login">Login</Link>
+        </div>
+        <div>
+          <Link href="/sign-up">Sign Up</Link>
+        </div>
       </div>
     );
   }

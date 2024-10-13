@@ -15,6 +15,7 @@ A lightweight, but fully featured passkey-based ethereum wallet built on Coinbas
 - [ ] Phone number login example
 - [ ] No backend example
 - [ ] Payment intents
+- [ ] Account recovery
 
 ## Development
 

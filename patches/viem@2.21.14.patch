@@ -1,3 +1,48 @@
+diff --git a/_esm/account-abstraction/accounts/implementations/toCoinbaseSmartAccount.js b/_esm/account-abstraction/accounts/implementations/toCoinbaseSmartAccount.js
+index 500152b0f18158da7e08cc60c63a59f0782f9ceb..eb2bea1473181617ac3ff5df841368c4c862a44d 100644
+--- a/_esm/account-abstraction/accounts/implementations/toCoinbaseSmartAccount.js
++++ b/_esm/account-abstraction/accounts/implementations/toCoinbaseSmartAccount.js
+@@ -31,7 +31,7 @@ import { toSmartAccount } from '../toSmartAccount.js';
+  * })
+  */
+ export async function toCoinbaseSmartAccount(parameters) {
+-    const { address, client, owners, nonce = 0n } = parameters;
++    const { client, owners, nonce = 0n, signatureOwnerIndex = 0, address } = parameters
+     const entryPoint = {
+         abi: entryPoint06Abi,
+         address: entryPoint06Address,
+@@ -100,6 +100,7 @@ export async function toCoinbaseSmartAccount(parameters) {
+             const signature = await sign({ hash, owner });
+             return wrapSignature({
+                 signature,
++                ownerIndex: signatureOwnerIndex
+             });
+         },
+         async signMessage(parameters) {
+@@ -113,6 +114,7 @@ export async function toCoinbaseSmartAccount(parameters) {
+             const signature = await sign({ hash, owner });
+             return wrapSignature({
+                 signature,
++                ownerIndex: signatureOwnerIndex
+             });
+         },
+         async signTypedData(parameters) {
+@@ -131,6 +133,7 @@ export async function toCoinbaseSmartAccount(parameters) {
+             const signature = await sign({ hash, owner });
+             return wrapSignature({
+                 signature,
++                ownerIndex: signatureOwnerIndex
+             });
+         },
+         async signUserOperation(parameters) {
+@@ -148,6 +151,7 @@ export async function toCoinbaseSmartAccount(parameters) {
+             const signature = await sign({ hash, owner });
+             return wrapSignature({
+                 signature,
++                ownerIndex: signatureOwnerIndex
+             });
+         },
+         userOperation: {
 diff --git a/_esm/account-abstraction/actions/bundler/prepareUserOperation.js b/_esm/account-abstraction/actions/bundler/prepareUserOperation.js
 index 307d51f41d2c7b438ded03a636457b3c566112f3..9c30e3fa0b3fe5eb425ebddfa1fcc7a02ba828fe 100644
 --- a/_esm/account-abstraction/actions/bundler/prepareUserOperation.js
@@ -24,3 +69,15 @@ index 03ae0983434fa2d70d302ec269c9c8dfb010a9b0..4a9f0fc5ecc623333e194dc6741c825e
                  const { schedule } = createBatchScheduler({
                      id: url_,
                      wait,
+diff --git a/account-abstraction/accounts/implementations/toCoinbaseSmartAccount.ts b/account-abstraction/accounts/implementations/toCoinbaseSmartAccount.ts
+index 7995fb62b6cf9eb732c9dc9905db2a702f2bcdb3..37c000c4a75d52e6eff360cffdb695728316fd2d 100644
+--- a/account-abstraction/accounts/implementations/toCoinbaseSmartAccount.ts
++++ b/account-abstraction/accounts/implementations/toCoinbaseSmartAccount.ts
+@@ -35,6 +35,7 @@ export type ToCoinbaseSmartAccountParameters = {
+   address?: Address | undefined
+   client: Client
+   owners: readonly OneOf<LocalAccount | WebAuthnAccount>[]
++  signatureOwnerIndex?: number | undefined
+   nonce?: bigint | undefined
+ }
+ 
