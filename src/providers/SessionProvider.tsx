@@ -1,9 +1,7 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { createContext, ReactNode, useContext, useEffect } from "react";
-import { UserRow } from "../types/db";
+import { UserRow } from "@/types/db";
+import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
-import Cookies from "js-cookie";
-import { AUTH_SESSION_COOKIE_NAME } from "../lib/constants";
+import { createContext, ReactNode, useContext } from "react";
 
 async function fetchUser(): Promise<UserRow> {
   const response = await fetch("/api/user");
@@ -33,7 +31,6 @@ const SessionContext = createContext<SessionContextType | undefined>(undefined);
 
 export function SessionProvider({ children }: { children: ReactNode }) {
   const router = useRouter();
-  const queryClient = useQueryClient();
 
   const {
     data: user,
@@ -50,13 +47,6 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const logout = () => {
     router.push("/logout");
   };
-
-  useEffect(() => {
-    if (isSuccess && user) {
-      // TODO: Only do this if user is on /login or /sign-up
-      // router.push("/");
-    }
-  }, [isSuccess, user, router]);
 
   return (
     <SessionContext.Provider
