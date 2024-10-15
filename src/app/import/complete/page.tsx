@@ -1,32 +1,77 @@
 "use client";
 
 import { coinbaseSmartWalletAbi } from "@/abi/coinbaseSmartWallet";
+import { bundlerTransports } from "@/lib/wagmi";
 import { useSession } from "@/providers/SessionProvider";
+import { useSmartWalletAccount } from "@/providers/SmartWalletAccountProvider";
 import { useMutation } from "@tanstack/react-query";
+import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
-import { encodeFunctionData, Hex, LocalAccount, padHex, toHex } from "viem";
+import {
+  encodeAbiParameters,
+  encodeFunctionData,
+  encodePacked,
+  Hex,
+  LocalAccount,
+  padHex,
+  parseSignature,
+  size,
+  toHex,
+} from "viem";
 import {
   createBundlerClient,
+  entryPoint06Address,
+  formatUserOperationRequest,
   toCoinbaseSmartAccount,
 } from "viem/account-abstraction";
 import { mnemonicToAccount } from "viem/accounts";
-import {
-  useAccount,
-  useConnect,
-  useDisconnect,
-  usePublicClient,
-  useReadContract,
-  useReadContracts,
-} from "wagmi";
+import { useDisconnect, usePublicClient } from "wagmi";
 import { parsePublicKey } from "webauthn-p256";
-import { bundlerTransports } from "../../../lib/wagmi";
+
+export function wrapSignature(parameters: {
+  ownerIndex?: number | undefined;
+  signature: Hex;
+}) {
+  const { ownerIndex = 0 } = parameters;
+  const signatureData = (() => {
+    if (size(parameters.signature) !== 65) return parameters.signature;
+    const signature = parseSignature(parameters.signature);
+    return encodePacked(
+      ["bytes32", "bytes32", "uint8"],
+      [signature.r, signature.s, signature.yParity === 0 ? 27 : 28]
+    );
+  })();
+  return encodeAbiParameters(
+    [
+      {
+        components: [
+          {
+            name: "ownerIndex",
+            type: "uint8",
+          },
+          {
+            name: "signatureData",
+            type: "bytes",
+          },
+        ],
+        type: "tuple",
+      },
+    ],
+    [
+      {
+        ownerIndex,
+        signatureData,
+      },
+    ]
+  );
+}
 
 export default function ImportCompletePage() {
-  const { user, isLoading: isUserLoading, logout } = useSession();
+  const { user } = useSession();
   const client = usePublicClient();
-  const { connectAsync } = useConnect();
-  const account = useAccount();
   const { disconnect } = useDisconnect();
+  const router = useRouter();
+  const { refetchOwners, owners, passkeyOwnerIndex } = useSmartWalletAccount();
 
   useEffect(() => {
     disconnect();
@@ -37,52 +82,24 @@ export default function ImportCompletePage() {
     null
   );
 
-  const { data: ownerCount, refetch: refetchOwnerMetadata } = useReadContract({
-    abi: coinbaseSmartWalletAbi,
-    address: user?.walletAddress,
-    functionName: "ownerCount",
-    args: [],
-    query: {
-      enabled: !!user?.importedAccountData,
-    },
-  });
+  const recoveryOwnerIndex = useMemo(() => {
+    if (!recoveryAccount?.address || !owners) return undefined;
 
-  const { data: ownersResult, refetch: refetchOwners } = useReadContracts({
-    contracts: !!ownerCount
-      ? Array.from({ length: Number(ownerCount) }, (_, i) => ({
-          abi: coinbaseSmartWalletAbi,
-          address: user?.walletAddress,
-          functionName: "ownerAtIndex",
-          args: [i],
-        }))
-      : undefined,
-    query: {
-      enabled: !!user?.importedAccountData && !!ownerCount,
-    },
-  });
-
-  const ownerIndex = useMemo(() => {
-    if (!user?.passkeyPublicKey) return undefined;
-
-    if (!user.importedAccountData) return 0; // Wallets created natively always have index 0
-
-    const owners = ownersResult?.map((owner) => owner.result as Hex);
-
-    return owners?.findIndex(
+    return owners.findIndex(
       (owner) =>
-        owner === padHex(user.passkeyPublicKey, { size: 64 }).toLowerCase()
+        owner === padHex(recoveryAccount.address, { size: 32 }).toLowerCase()
     );
-  }, [ownersResult]);
+  }, [owners, recoveryAccount]);
 
   useEffect(() => {
-    if (ownerIndex !== undefined && recoveryAccount) {
-      connectSmartWallet.mutate();
+    if (passkeyOwnerIndex !== undefined && passkeyOwnerIndex >= 0) {
+      router.push("/");
     }
-  }, [ownerIndex, recoveryAccount]);
+  }, [passkeyOwnerIndex]);
 
-  const connectSmartWallet = useMutation({
+  const addPasskeyOwner = useMutation({
     mutationFn: async () => {
-      if (!user || !client || !recoveryAccount) {
+      if (!user || !client || !recoveryAccount || !recoveryAccount.sign) {
         throw new Error("Missing required data");
       }
 
@@ -91,7 +108,7 @@ export default function ImportCompletePage() {
         client,
         owners: [recoveryAccount],
         // @ts-ignore -- patched into viem
-        signatureOwnerIndex: ownerIndex,
+        signatureOwnerIndex: recoveryOwnerIndex,
       });
 
       const bundlerClient = createBundlerClient({
@@ -116,20 +133,29 @@ export default function ImportCompletePage() {
 
       const parsedPublicKey = parsePublicKey(user.passkeyPublicKey);
 
-      // Get replayable UserOp (replay safe hash + nonce)
+      const stubSignature = await smartWalletAccount.getStubSignature();
+      const nonce = await smartWalletAccount.getNonce({
+        key: BigInt(8453),
+      });
+
       const preparedUserOp = await bundlerClient.prepareUserOperation({
-        nonce: BigInt(8453) << BigInt(64),
-        initCode: user.importedAccountData?.initCode as Hex,
-        calls: [
-          {
-            to: user.walletAddress,
-            data: encodeFunctionData({
-              abi: coinbaseSmartWalletAbi,
-              functionName: "addOwnerPublicKey",
-              args: [toHex(parsedPublicKey.x), toHex(parsedPublicKey.y)],
-            }),
-          },
-        ],
+        callData: encodeFunctionData({
+          abi: coinbaseSmartWalletAbi,
+          functionName: "executeWithoutChainIdValidation",
+          args: [
+            [
+              encodeFunctionData({
+                abi: coinbaseSmartWalletAbi,
+                functionName: "addOwnerPublicKey",
+                args: [toHex(parsedPublicKey.x), toHex(parsedPublicKey.y)],
+              }),
+            ],
+          ],
+        }),
+        sender: smartWalletAccount.address,
+        nonce: nonce,
+        signature: stubSignature,
+        initCode: "0x",
       });
 
       const hash = await client.readContract({
@@ -139,34 +165,41 @@ export default function ImportCompletePage() {
         args: [preparedUserOp],
       });
 
-      const signature = await smartWalletAccount.sign({
-        hash,
-      });
-
-      console.log({
-        preparedUserOp,
-        hash,
+      const signature = await recoveryAccount.sign({ hash });
+      const wrappedSignature = wrapSignature({
         signature,
+        ownerIndex: recoveryOwnerIndex,
       });
 
-      // TODO: Look into why we're getting UserOperationExecutionError: Invalid Smart Account nonce used for User Operation.
+      const rpcParameters = formatUserOperationRequest({
+        ...preparedUserOp,
+        signature: wrappedSignature,
+      });
 
-      // const userOpHash = await bundlerClient.sendUserOperation({
-      //   ...preparedUserOp,
-      //   signature,
-      // })
+      const userOpHash = await bundlerClient.request(
+        {
+          method: "eth_sendUserOperation",
+          params: [rpcParameters, entryPoint06Address],
+        },
+        { retryCount: 0 }
+      );
+      const receipt = await bundlerClient.waitForUserOperationReceipt({
+        hash: userOpHash,
+      });
+
+      console.log("addOwner receipt", receipt);
     },
     onSuccess: () => {
-      console.log("Smart wallet connected successfully");
-      // TODO: Handle successful connection (e.g., show success message, redirect)
+      console.log("Owner added successfully");
+      refetchOwners();
     },
     onError: (error) => {
       console.error("Error connecting smart wallet:", error);
-      // TODO: Handle error (e.g., show error message)
+      // Error handling is now done in the component render
     },
   });
 
-  const mutation = useMutation({
+  const loadRecoveryAccount = useMutation({
     mutationFn: async () => {
       if (!user) {
         throw new Error("User not set");
@@ -207,40 +240,67 @@ export default function ImportCompletePage() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    mutation.mutate();
+    loadRecoveryAccount.mutate();
   };
 
   return (
     <div>
       <h1>Complete Import</h1>
-      {!account.address ? (
-        <div>
-          <form onSubmit={handleSubmit}>
-            <label htmlFor="recoveryPhrase">
-              Enter your 13-word recovery phrase:
-            </label>
-            <textarea
-              id="recoveryPhrase"
-              value={recoveryPhrase}
-              onChange={(e) => setRecoveryPhrase(e.target.value)}
-              rows={4}
-              placeholder="Enter your 13-word recovery phrase here"
-              required
-            />
-            <button type="submit" disabled={mutation.isPending}>
-              {mutation.isPending ? "Submitting..." : "Submit"}
-            </button>
-          </form>
-          {mutation.isSuccess && <p>Recovery phrase submitted successfully!</p>}
-          {mutation.isError && (
-            <p>Error submitting recovery phrase. Please try again.</p>
-          )}
-        </div>
-      ) : (
-        <div>
-          Connected to {account.address} with owner {recoveryAccount?.address}
-        </div>
-      )}
+      <div>
+        <form onSubmit={handleSubmit}>
+          <label htmlFor="recoveryPhrase">
+            Enter your 13-word recovery phrase:
+          </label>
+          <textarea
+            id="recoveryPhrase"
+            value={recoveryPhrase}
+            onChange={(e) => setRecoveryPhrase(e.target.value)}
+            rows={4}
+            placeholder="Enter your 13-word recovery phrase here"
+            required
+          />
+          <button type="submit" disabled={loadRecoveryAccount.isPending}>
+            {loadRecoveryAccount.isPending ? "Submitting..." : "Submit"}
+          </button>
+        </form>
+        {owners && (
+          <div>
+            <div>Owners ({owners.length}):</div>
+            {owners.map((owner, index) => (
+              <div key={index}>{owner}</div>
+            ))}
+          </div>
+        )}
+
+        <br />
+
+        {recoveryAccount?.address && (
+          <div>
+            <div>Recovery account: {recoveryAccount.address}</div>
+            <div>Index: {recoveryOwnerIndex}</div>
+            {recoveryOwnerIndex !== undefined && recoveryOwnerIndex >= 0 && (
+              <button
+                onClick={() => addPasskeyOwner.mutate()}
+                disabled={addPasskeyOwner.isPending}
+              >
+                {addPasskeyOwner.isPending ? "Adding..." : "Add Passkey Owner"}
+              </button>
+            )}
+            {recoveryOwnerIndex === -1 && (
+              <div>Recovery account is not an owner</div>
+            )}
+            {addPasskeyOwner.isError && (
+              <div style={{ color: "red" }}>
+                Error adding passkey owner:{" "}
+                {addPasskeyOwner.error?.message || "An unknown error occurred"}
+              </div>
+            )}
+          </div>
+        )}
+        {loadRecoveryAccount.isError && (
+          <p>Loading recovery account. Please try again.</p>
+        )}
+      </div>
     </div>
   );
 }

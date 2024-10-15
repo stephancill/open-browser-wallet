@@ -13,7 +13,7 @@ function AuthLayoutContent({ children }: AuthLayoutProps) {
   const router = useRouter();
   const { user, isLoading, isError } = useSession();
   const {
-    ownerIndex,
+    passkeyOwnerIndex: ownerIndex,
     isLoading: isSmartWalletLoading,
     error: smartWalletError,
   } = useSmartWalletAccount();

@@ -73,12 +73,13 @@ export default function SignUpPage() {
         }),
       });
       if (!response.ok) {
+        let error = new Error("Failed to create account");
         try {
-          const { error } = await response.json();
-          console.error(error);
-          throw new Error(error);
-        } catch (error) {
-          throw new Error("Failed to create account");
+          const { error: errorMessage } = await response.json();
+          console.error(errorMessage);
+          error = new Error(errorMessage);
+        } catch {
+          throw error;
         }
       }
       return response.json();

@@ -30,6 +30,7 @@ export default function Home() {
       });
 
       const smartWallet = await toCoinbaseSmartAccount({
+        address: user.walletAddress,
         client,
         owners: [passkeyAccount],
       });

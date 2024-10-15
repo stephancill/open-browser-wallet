@@ -1,7 +1,13 @@
 import { coinbaseSmartWalletAbi } from "@/abi/coinbaseSmartWallet";
 import { smartWalletConnector } from "@/lib/connector";
 import { useQuery } from "@tanstack/react-query";
-import { createContext, ReactNode, useContext, useMemo } from "react";
+import {
+  createContext,
+  ReactNode,
+  useContext,
+  useEffect,
+  useMemo,
+} from "react";
 import { Hex, padHex } from "viem";
 import {
   SmartAccount,
@@ -20,7 +26,9 @@ interface SmartWalletAccountType {
   smartWalletAccount: SmartAccount | undefined | null;
   isLoading: boolean;
   error: Error | null;
-  ownerIndex: number | undefined;
+  passkeyOwnerIndex: number | undefined;
+  refetchOwners: () => void;
+  owners: Hex[] | undefined;
 }
 
 const SmartWalletAccountContext = createContext<
@@ -36,7 +44,11 @@ export function SmartWalletAccountProvider({
   const client = useClient();
   const { connectAsync } = useConnect();
 
-  const { data: ownerCount, isLoading: isOwnerCountLoading } = useReadContract({
+  const {
+    data: ownerCount,
+    isLoading: isOwnerCountLoading,
+    refetch: refetchOwnerCount,
+  } = useReadContract({
     abi: coinbaseSmartWalletAbi,
     address: user?.walletAddress,
     functionName: "ownerCount",
@@ -112,6 +124,12 @@ export function SmartWalletAccountProvider({
     enabled: !!user,
   });
 
+  // Refetch owners when the owner count changes
+  useEffect(() => {
+    if (!ownerCount) return;
+    refetchOwnerCount();
+  }, [ownerCount]);
+
   return (
     <SmartWalletAccountContext.Provider
       value={{
@@ -121,7 +139,9 @@ export function SmartWalletAccountProvider({
           isUserLoading ||
           (!!user?.importedAccountData && isOwnerCountLoading),
         error: smartWalletError,
-        ownerIndex,
+        passkeyOwnerIndex: ownerIndex,
+        refetchOwners: refetchOwnerCount,
+        owners,
       }}
     >
       {children}
