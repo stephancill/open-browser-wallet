@@ -87,7 +87,6 @@ export async function POST(req: NextRequest) {
       ),
     });
 
-    // TODO: Simulate all userOps to see which one results in deployed contract, for now we assume it's the first one (might be possible to do offline)
     const deployUserOp = (
       await getUserOpsFromTransaction({
         bundlerClient,
@@ -95,7 +94,13 @@ export async function POST(req: NextRequest) {
         client: baseClient,
         transactionHash: deployTransaction.transactionHash,
       })
-    ).find((userOp) => userOp.userOperation.initCode);
+    ).find((userOp) => {
+      return (
+        userOp.userOperation.initCode &&
+        userOp.userOperation.initCode !== "0x" &&
+        getAddress(userOp.userOperation.sender) === walletAddress
+      );
+    });
 
     if (!deployUserOp) {
       return Response.json(

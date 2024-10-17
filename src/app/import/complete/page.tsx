@@ -1,6 +1,7 @@
 "use client";
 
 import { coinbaseSmartWalletAbi } from "@/abi/coinbaseSmartWallet";
+import { bigintReplacer, getTransportByChainId } from "@/lib/utils";
 import { bundlerTransports } from "@/lib/wagmi";
 import { useSession } from "@/providers/SessionProvider";
 import { useSmartWalletAccount } from "@/providers/SmartWalletAccountProvider";
@@ -8,6 +9,7 @@ import { useMutation } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import {
+  createPublicClient,
   encodeAbiParameters,
   encodeFunctionData,
   encodePacked,
@@ -25,7 +27,8 @@ import {
   toCoinbaseSmartAccount,
 } from "viem/account-abstraction";
 import { mnemonicToAccount } from "viem/accounts";
-import { useDisconnect, usePublicClient } from "wagmi";
+import { base } from "viem/chains";
+import { useDisconnect } from "wagmi";
 import { parsePublicKey } from "webauthn-p256";
 
 export function wrapSignature(parameters: {
@@ -68,7 +71,6 @@ export function wrapSignature(parameters: {
 
 export default function ImportCompletePage() {
   const { user } = useSession();
-  const client = usePublicClient();
   const { disconnect } = useDisconnect();
   const router = useRouter();
   const { refetchOwners, owners, passkeyOwnerIndex } = useSmartWalletAccount();
@@ -99,9 +101,15 @@ export default function ImportCompletePage() {
 
   const addPasskeyOwner = useMutation({
     mutationFn: async () => {
-      if (!user || !client || !recoveryAccount || !recoveryAccount.sign) {
+      if (!user || !recoveryAccount || !recoveryAccount.sign) {
         throw new Error("Missing required data");
       }
+
+      // We deploy all new owners on base first
+      const client = createPublicClient({
+        chain: base,
+        transport: getTransportByChainId(base.id),
+      });
 
       const smartWalletAccount = await toCoinbaseSmartAccount({
         address: user.walletAddress,
@@ -138,25 +146,36 @@ export default function ImportCompletePage() {
         key: BigInt(8453),
       });
 
-      const preparedUserOp = await bundlerClient.prepareUserOperation({
-        callData: encodeFunctionData({
-          abi: coinbaseSmartWalletAbi,
-          functionName: "executeWithoutChainIdValidation",
-          args: [
-            [
-              encodeFunctionData({
-                abi: coinbaseSmartWalletAbi,
-                functionName: "addOwnerPublicKey",
-                args: [toHex(parsedPublicKey.x), toHex(parsedPublicKey.y)],
-              }),
+      const preparedUserOpWithGasFees =
+        await bundlerClient.prepareUserOperation({
+          callData: encodeFunctionData({
+            abi: coinbaseSmartWalletAbi,
+            functionName: "executeWithoutChainIdValidation",
+            args: [
+              [
+                encodeFunctionData({
+                  abi: coinbaseSmartWalletAbi,
+                  functionName: "addOwnerPublicKey",
+                  args: [toHex(parsedPublicKey.x), toHex(parsedPublicKey.y)],
+                }),
+              ],
             ],
-          ],
-        }),
-        sender: smartWalletAccount.address,
-        nonce: nonce,
-        signature: stubSignature,
-        initCode: "0x",
-      });
+          }),
+          sender: smartWalletAccount.address,
+          nonce: nonce,
+          signature: stubSignature,
+          initCode: "0x",
+        });
+
+      const preparedUserOp = {
+        ...preparedUserOpWithGasFees,
+      };
+
+      preparedUserOp.maxFeePerGas = BigInt(0);
+      preparedUserOp.maxPriorityFeePerGas = BigInt(0);
+      preparedUserOp.callGasLimit = BigInt(1000000);
+      preparedUserOp.preVerificationGas = BigInt(1000000);
+      preparedUserOp.verificationGasLimit = BigInt(1000000);
 
       const hash = await client.readContract({
         abi: coinbaseSmartWalletAbi,
@@ -171,23 +190,40 @@ export default function ImportCompletePage() {
         ownerIndex: recoveryOwnerIndex,
       });
 
+      console.log(
+        "userOp",
+        JSON.stringify(
+          {
+            ...preparedUserOp,
+            signature: wrappedSignature,
+          },
+          bigintReplacer
+        )
+      );
+
       const rpcParameters = formatUserOperationRequest({
         ...preparedUserOp,
         signature: wrappedSignature,
       });
 
-      const userOpHash = await bundlerClient.request(
-        {
-          method: "eth_sendUserOperation",
+      const {
+        result: [userOpHash, handleOpsHash],
+      } = await fetch(`/api/bundler/self?chainId=${client.chain.id}`, {
+        method: "POST",
+        body: JSON.stringify({
+          method: "eth_sendUserOperationSelf",
           params: [rpcParameters, entryPoint06Address],
-        },
-        { retryCount: 0 }
-      );
-      const receipt = await bundlerClient.waitForUserOperationReceipt({
-        hash: userOpHash,
-      });
+        }),
+      }).then((res) => res.json());
 
-      console.log("addOwner receipt", receipt);
+      console.log("userOpHash", userOpHash);
+      console.log("handleOpsHash", handleOpsHash);
+
+      // TODO: Maybe wait for transaction receipt?
+      // const txReceipt = await client.waitForTransactionReceipt({
+      //   hash: handleOpsHash,
+      // });
+      // console.log("txReceipt", txReceipt);
     },
     onSuccess: () => {
       console.log("Owner added successfully");

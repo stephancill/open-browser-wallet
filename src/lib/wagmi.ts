@@ -10,7 +10,7 @@ const transports = Object.fromEntries(
 ) as { [K in (typeof chains)[number]["id"]]: HttpTransport };
 
 export const bundlerTransports = Object.fromEntries(
-  chains.map((chain) => [chain.id, http(`/api/bundler/v2/${chain.id}/rpc`)])
+  chains.map((chain) => [chain.id, http(`/api/bundler?chainId=${chain.id}`)])
 );
 
 export const transportEndpoints = Object.fromEntries(

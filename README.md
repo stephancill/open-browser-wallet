@@ -38,6 +38,20 @@ pnpm install
 pnpm run dev
 ```
 
+### Fork testing
+
+To run a self-bundler for testing, run the following command:
+
+```
+anvil --fork-url https://mainnet.base.org --block-time 2
+```
+
+```
+docker compose up -d rundler
+```
+
+
+
 ## Looking for the old repo?
 
 https://github.com/stephancill/open-browser-wallet-old

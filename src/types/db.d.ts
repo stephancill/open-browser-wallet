@@ -1,5 +1,6 @@
 import { Generated } from "kysely";
 import { Address, Hex } from "viem";
+import { UserOperation } from "viem/account-abstraction";
 
 export type UserRow = {
   id: Generated<string>;
@@ -12,6 +13,7 @@ export type UserRow = {
     addOwnerTransactions: {
       transactionHash: Hex;
       owner: Hex;
+      userOp?: any;
     }[];
   } | null;
   createdAt: Generated<Date>;
