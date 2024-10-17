@@ -3,16 +3,16 @@ import {
   Address,
   createPublicClient,
   decodeEventLog,
-  fallback,
   Hex,
   http,
+  toHex,
 } from "viem";
 import { BundlerClient, entryPoint06Abi } from "viem/account-abstraction";
 import { SignReturnType, WebAuthnData } from "webauthn-p256";
 import { coinbaseSmartWalletAbi } from "../abi/coinbaseSmartWallet";
 
 export function createProxyRequestHandler(
-  targetUrl: string,
+  targetUrl: string | ((req: NextRequest) => string),
   {
     searchParams = {},
     headers = {},
@@ -25,7 +25,9 @@ export function createProxyRequestHandler(
     req: NextRequest,
     context: { params?: { path: string[] } }
   ): Promise<NextResponse> {
-    const url = new URL(targetUrl);
+    const url = new URL(
+      typeof targetUrl === "function" ? targetUrl(req) : targetUrl
+    );
 
     url.pathname = [
       ...url.pathname.split("/").slice(1),
@@ -71,9 +73,24 @@ export function createProxyRequestHandler(
 }
 
 export function getTransportByChainId(chainId: number) {
-  // TODO: Expose on client side
-  if (process.env[`EVM_RPC_URL_${chainId}`]) {
-    return fallback([http(process.env[`EVM_RPC_URL_${chainId}`]), http()]);
+  // TODO: Find a better way to do this
+  const env: any = {
+    ...process.env,
+    NEXT_PUBLIC_EVM_RPC_URL_8453: process.env.NEXT_PUBLIC_EVM_RPC_URL_8453,
+  };
+
+  const url = env[`NEXT_PUBLIC_EVM_RPC_URL_${chainId}`];
+  if (url) {
+    return http(url);
+  } else {
+    return http();
+  }
+}
+
+export function getBundlerTransportByChainId(chainId: number) {
+  const url = process.env[`EVM_BUNDLER_RPC_URL_${chainId}`];
+  if (url) {
+    return http(url);
   } else {
     return http();
   }
@@ -81,6 +98,13 @@ export function getTransportByChainId(chainId: number) {
 
 export function truncateAddress(address: string) {
   return `${address.slice(0, 6)}...${address.slice(-4)}`;
+}
+
+export function bigintReplacer(key: string, value: any) {
+  if (typeof value === "bigint") {
+    return toHex(value);
+  }
+  return value;
 }
 
 export function createUUID() {
@@ -122,10 +146,12 @@ export async function getUserOpsFromTransaction({
   client,
   bundlerClient,
   transactionHash,
+  sender,
 }: {
   client: ReturnType<typeof createPublicClient>;
   bundlerClient: BundlerClient;
   transactionHash: `0x${string}`;
+  sender?: Address;
 }) {
   const deployReceipt = await client.getTransactionReceipt({
     hash: transactionHash,
@@ -153,7 +179,11 @@ export async function getUserOpsFromTransaction({
       });
 
       if (decodedEvent.eventName !== "UserOperationEvent") {
-        throw new Error("Invalid event name");
+        return null;
+      }
+
+      if (sender && decodedEvent.args.sender !== sender) {
+        return null;
       }
 
       const userOp = await bundlerClient.getUserOperation({
@@ -163,7 +193,10 @@ export async function getUserOpsFromTransaction({
       return userOp;
     })
   );
-  return userOps;
+
+  const filteredUserOps = userOps.filter((userOp) => userOp !== null);
+
+  return filteredUserOps;
 }
 
 /**

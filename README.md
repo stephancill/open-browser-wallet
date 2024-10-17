@@ -8,6 +8,7 @@ A lightweight, but fully featured passkey-based ethereum wallet built on Coinbas
 - Connect to apps with Coinbase Wallet SDK, Mobile Wallet Protocol, and WalletConnect
 - Supports most common wallet features (sign messages, sign transactions, etc.)
 - Multichain support
+- Import existing Smart Wallets via recovery EOA
 
 ### Planned
 
@@ -43,6 +44,20 @@ Run the Next.js app
 ```
 pnpm run dev
 ```
+
+### Fork testing
+
+To run a self-bundler for testing, run the following command:
+
+```
+anvil --fork-url https://mainnet.base.org --block-time 2
+```
+
+```
+docker compose up -d rundler
+```
+
+
 
 ## Looking for the old repo?
 

@@ -1,53 +1,16 @@
 "use client";
 
+import Link from "next/link";
+import { useAccount } from "wagmi";
+import { WalletConnectView } from "../components/WalletConnect";
 import { AuthLayout } from "../layouts/AuthLayout";
 import { useSession } from "../providers/SessionProvider";
-import {
-  toCoinbaseSmartAccount,
-  toWebAuthnAccount,
-} from "viem/account-abstraction";
-import { useClient, useConnect, useAccount } from "wagmi";
-import { smartWalletConnector } from "../lib/connector";
-import { useQuery } from "@tanstack/react-query";
-import Link from "next/link";
+import { useSmartWalletAccount } from "../providers/SmartWalletAccountProvider";
 
 export default function Home() {
   const { user, isLoading: isUserLoading, logout } = useSession();
-  const client = useClient();
-  const { connectAsync } = useConnect();
   const account = useAccount();
-
-  const { isLoading: isWalletLoading } = useQuery({
-    queryKey: ["smartWallet", user?.passkeyId],
-    queryFn: async () => {
-      if (!user) return null;
-
-      const passkeyAccount = toWebAuthnAccount({
-        credential: {
-          id: user.passkeyId,
-          publicKey: user.passkeyPublicKey,
-        },
-      });
-
-      const smartWallet = await toCoinbaseSmartAccount({
-        address: user.walletAddress,
-        client,
-        owners: [passkeyAccount],
-      });
-
-      const burnerConnector = smartWalletConnector({
-        account: smartWallet,
-      });
-
-      await connectAsync({
-        connector: burnerConnector,
-      });
-
-      return smartWallet;
-    },
-    enabled: !!user,
-    throwOnError: true,
-  });
+  const { isLoading: isWalletLoading } = useSmartWalletAccount();
 
   if (!isUserLoading && !user) {
     return (
@@ -69,6 +32,7 @@ export default function Home() {
         <pre>{JSON.stringify(user, null, 2)}</pre>
         <div>Connected: {isWalletLoading ? "Loading..." : account.address}</div>
         <button onClick={logout}>Logout</button>
+        <WalletConnectView />
       </div>
     </AuthLayout>
   );

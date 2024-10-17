@@ -121,7 +121,7 @@ export function SmartWalletAccountProvider({
 
       return smartWallet;
     },
-    enabled: !!user,
+    enabled: !!user && ownerIndex !== undefined,
   });
 
   // Refetch owners when the owner count changes

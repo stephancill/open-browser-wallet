@@ -2,9 +2,9 @@ import { Lucia } from "lucia";
 import { NextRequest, NextResponse } from "next/server";
 import { Address } from "viem";
 import { Hex } from "webauthn-p256";
+import { AUTH_SESSION_COOKIE_NAME } from "./constants";
 import { getAuthAdapter } from "./db";
 import { AuthError } from "./errors";
-import { AUTH_SESSION_COOKIE_NAME } from "./constants";
 
 const adapter = getAuthAdapter();
 
@@ -84,6 +84,7 @@ declare module "lucia" {
         addOwnerTransactions: {
           transactionHash: Hex;
           owner: Hex;
+          userOp?: any;
         }[];
       } | null;
     };
