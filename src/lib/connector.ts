@@ -22,7 +22,7 @@ import {
 import { createBundlerClient, SmartAccount } from "viem/account-abstraction";
 import { hexToBigInt, numberToHex } from "viem/utils";
 import { createConnector } from "wagmi";
-import { chains } from "./wagmi";
+import { bundlerTransports } from "./wagmi";
 
 export class ConnectorNotConnectedError extends BaseError {
   override name = "ConnectorNotConnectedError";
@@ -44,10 +44,6 @@ type Provider = ReturnType<
 
 export const connectorId = "passkeySmartWallet" as const;
 export const connectorName = "Passkey Smart Wallet" as const;
-
-const bundlerTransports = Object.fromEntries(
-  chains.map((chain) => [chain.id, http(`/api/bundler/v2/${chain.id}/rpc`)])
-);
 
 export const smartWalletConnector = ({
   account,

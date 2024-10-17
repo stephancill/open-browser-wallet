@@ -1,9 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
-import { fallback, Hex, http } from "viem";
+import {
+  Address,
+  createPublicClient,
+  decodeEventLog,
+  Hex,
+  http,
+  toHex,
+} from "viem";
+import { BundlerClient, entryPoint06Abi } from "viem/account-abstraction";
 import { SignReturnType, WebAuthnData } from "webauthn-p256";
+import { coinbaseSmartWalletAbi } from "../abi/coinbaseSmartWallet";
 
 export function createProxyRequestHandler(
-  targetUrl: string,
+  targetUrl: string | ((req: NextRequest) => string),
   {
     searchParams = {},
     headers = {},
@@ -16,7 +25,9 @@ export function createProxyRequestHandler(
     req: NextRequest,
     context: { params?: { path: string[] } }
   ): Promise<NextResponse> {
-    const url = new URL(targetUrl);
+    const url = new URL(
+      typeof targetUrl === "function" ? targetUrl(req) : targetUrl
+    );
 
     url.pathname = [
       ...url.pathname.split("/").slice(1),
@@ -62,9 +73,24 @@ export function createProxyRequestHandler(
 }
 
 export function getTransportByChainId(chainId: number) {
-  // TODO: Expose on client side
-  if (process.env[`EVM_RPC_URL_${chainId}`]) {
-    return fallback([http(process.env[`EVM_RPC_URL_${chainId}`]), http()]);
+  // TODO: Find a better way to do this
+  const env: any = {
+    ...process.env,
+    NEXT_PUBLIC_EVM_RPC_URL_8453: process.env.NEXT_PUBLIC_EVM_RPC_URL_8453,
+  };
+
+  const url = env[`NEXT_PUBLIC_EVM_RPC_URL_${chainId}`];
+  if (url) {
+    return http(url);
+  } else {
+    return http();
+  }
+}
+
+export function getBundlerTransportByChainId(chainId: number) {
+  const url = process.env[`EVM_BUNDLER_RPC_URL_${chainId}`];
+  if (url) {
+    return http(url);
   } else {
     return http();
   }
@@ -72,6 +98,13 @@ export function getTransportByChainId(chainId: number) {
 
 export function truncateAddress(address: string) {
   return `${address.slice(0, 6)}...${address.slice(-4)}`;
+}
+
+export function bigintReplacer(key: string, value: any) {
+  if (typeof value === "bigint") {
+    return toHex(value);
+  }
+  return value;
 }
 
 export function createUUID() {
@@ -107,4 +140,112 @@ export function serializeSignReturnType(credential: SignReturnType) {
   };
 
   return credentialToSend;
+}
+
+export async function getUserOpsFromTransaction({
+  client,
+  bundlerClient,
+  transactionHash,
+  sender,
+}: {
+  client: ReturnType<typeof createPublicClient>;
+  bundlerClient: BundlerClient;
+  transactionHash: `0x${string}`;
+  sender?: Address;
+}) {
+  const deployReceipt = await client.getTransactionReceipt({
+    hash: transactionHash,
+  });
+
+  const userOpEventLogs = deployReceipt.logs.filter((log) => {
+    try {
+      const event = decodeEventLog({
+        abi: entryPoint06Abi,
+        data: log.data,
+        topics: log.topics,
+      });
+      return event.eventName === "UserOperationEvent";
+    } catch (error) {
+      return false;
+    }
+  });
+
+  const userOps = await Promise.all(
+    userOpEventLogs.map(async (log) => {
+      const decodedEvent = decodeEventLog({
+        abi: entryPoint06Abi,
+        data: log.data,
+        topics: log.topics,
+      });
+
+      if (decodedEvent.eventName !== "UserOperationEvent") {
+        return null;
+      }
+
+      if (sender && decodedEvent.args.sender !== sender) {
+        return null;
+      }
+
+      const userOp = await bundlerClient.getUserOperation({
+        hash: decodedEvent.args.userOpHash,
+      });
+
+      return userOp;
+    })
+  );
+
+  const filteredUserOps = userOps.filter((userOp) => userOp !== null);
+
+  return filteredUserOps;
+}
+
+/**
+ * Gets transactions that emitted an "AddOwner" event for the given address in ascending order (oldest first)
+ */
+export async function getAddOwnerTransactions({
+  chainId,
+  address,
+}: {
+  chainId: number;
+  address: Address;
+}) {
+  const response = await fetch(
+    `https://scope.sh/api/logs?chain=${chainId}&address=${address}&cursor=0&limit=21&sort=asc`
+  );
+  const data = await response.json();
+
+  const addOwnerLogs = data.logs.filter((log: any) => {
+    try {
+      const event = decodeEventLog({
+        abi: coinbaseSmartWalletAbi,
+        data: log.data,
+        topics: log.topics,
+      });
+      return event.eventName === "AddOwner";
+    } catch (error) {
+      return false;
+    }
+  });
+
+  const addOwnerTransactions: {
+    transactionHash: Hex;
+    owner: Hex;
+  }[] = addOwnerLogs.map((log: any) => {
+    const event = decodeEventLog({
+      abi: coinbaseSmartWalletAbi,
+      data: log.data,
+      topics: log.topics,
+    });
+
+    if (event.eventName !== "AddOwner") {
+      throw new Error("Invalid event name");
+    }
+
+    return {
+      transactionHash: log.transactionHash,
+      owner: event.args.owner,
+    };
+  });
+
+  return addOwnerTransactions;
 }
