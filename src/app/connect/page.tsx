@@ -2,8 +2,10 @@
 
 import Modal from "@/components/Modal";
 import useModal from "@/hooks/modal";
+import { AuthLayout } from "@/layouts/AuthLayout";
 import { handleMessage } from "@/lib/coinbase-sdk/shared";
 import { transportEndpoints } from "@/lib/wagmi";
+import { useSession } from "@/providers/SessionProvider";
 import { useSmartWalletAccount } from "@/providers/SmartWalletAccountProvider";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { EIP1193RequestFn, EIP1474Methods } from "viem";
@@ -17,6 +19,7 @@ function closePopup() {
 }
 
 export default function Page() {
+  const { logout } = useSession();
   const { address } = useAccount();
   const { isOpen, content, openModal, closeModal } = useModal();
   const { isLoading, error } = useSmartWalletAccount();
@@ -72,6 +75,7 @@ export default function Page() {
   );
 
   const receiveMessage = useCallback((m: MessageEvent) => {
+    console.log("receiveMessage", m);
     if (m.source === window.opener) {
       setMessageQueue((prevQueue) => [...prevQueue, m]);
     }
@@ -118,8 +122,12 @@ export default function Page() {
   }, [processMessageQueue]);
 
   useEffect(() => {
-    window.addEventListener("message", receiveMessage, false);
-    window.addEventListener("beforeunload", closePopup, false);
+    if (!address) {
+      return;
+    }
+
+    window.addEventListener("message", receiveMessage);
+    window.addEventListener("beforeunload", closePopup);
 
     const message = { event: "PopupLoaded" };
     window.opener.postMessage(message, "*");
@@ -128,16 +136,19 @@ export default function Page() {
       window.removeEventListener("message", receiveMessage);
       window.removeEventListener("beforeunload", closePopup);
     };
-  }, [receiveMessage]);
+  }, [receiveMessage, address]);
 
   return (
-    <div>
-      {isLoading && <div>Loading...</div>}
-      {error && <div>Error: {error.message}</div>}
-      <div>Connected account: {address}</div>
-      <Modal isOpen={isOpen} onClose={closeModal}>
-        {content}
-      </Modal>
-    </div>
+    <AuthLayout>
+      <div>
+        {isLoading && <div>Loading...</div>}
+        {error && <div>Error: {error.message}</div>}
+        <div>Connected account: {address}</div>
+        <button onClick={logout}>Logout</button>
+        <Modal isOpen={isOpen} onClose={closeModal}>
+          {content}
+        </Modal>
+      </div>
+    </AuthLayout>
   );
 }
