@@ -9,12 +9,12 @@ export type UserRow = {
   passkeyPublicKey: Hex;
   importedAccountData: {
     initCode: Hex;
-    replayableUserOps?: Hex[];
     addOwnerTransactions: {
       transactionHash: Hex;
       owner: Hex;
       userOp?: any;
     }[];
+    ownerAddSequence?: number[][];
   } | null;
   createdAt: Generated<Date>;
   updatedAt: Generated<Date>;

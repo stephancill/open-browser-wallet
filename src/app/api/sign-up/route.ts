@@ -74,6 +74,7 @@ export async function POST(req: NextRequest) {
 
     // TODO: Check implementation code at storage
 
+    // TODO: Could get this lazily
     const [deployTransaction, ...addOwnerTransactions] =
       await getAddOwnerTransactions({
         address: walletAddress,
@@ -86,19 +87,17 @@ export async function POST(req: NextRequest) {
         `https://api.pimlico.io/v2/${base.id}/rpc?apikey=${process.env.PIMLICO_API_KEY}`
       ),
     });
-
     const deployUserOp = (
       await getUserOpsFromTransaction({
         bundlerClient,
         // @ts-ignore -- idk
         client: baseClient,
         transactionHash: deployTransaction.transactionHash,
+        sender: walletAddress,
       })
     ).find((userOp) => {
       return (
-        userOp.userOperation.initCode &&
-        userOp.userOperation.initCode !== "0x" &&
-        getAddress(userOp.userOperation.sender) === walletAddress
+        userOp.userOperation.initCode && userOp.userOperation.initCode !== "0x"
       );
     });
 

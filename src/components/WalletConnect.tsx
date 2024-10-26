@@ -18,6 +18,19 @@ export function WalletConnectView() {
    */
   const handleSessionRequest = useCallback<EIP1193RequestFn<EIP1474Methods>>(
     async ({ method, params }) => {
+      /**
+       * TODO: Handle eth_sendTransaction on chains where not deployed
+       * 1. Check if passkey is owner of the contract
+       *    - If not, check if the contract is deployed
+       *      - If not:
+       *          1. Deploy contract using initcode
+       *          2. Replay add owner userOps in grouped sequence
+       *      - If yes:
+       *          1. Check all owners and ensure they match the index
+       *          2. Replay missing add owner userOps in grouped sequence
+       * 2. Proceed with transaction
+       */
+
       return new Promise((resolve, reject) => {
         openModal(
           <div>

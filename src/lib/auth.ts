@@ -80,12 +80,12 @@ declare module "lucia" {
       username: string | null;
       imported_account_data: {
         initCode: Hex;
-        replayableUserOps?: Hex[];
         addOwnerTransactions: {
           transactionHash: Hex;
           owner: Hex;
           userOp?: any;
         }[];
+        ownerAddSequence?: number[][];
       } | null;
     };
   }
