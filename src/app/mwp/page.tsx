@@ -6,6 +6,7 @@ import { AuthLayout } from "@/layouts/AuthLayout";
 import { replacer } from "@/lib/coinbase-sdk/json";
 import { handleMessage } from "@/lib/coinbase-sdk/shared";
 import { transportEndpoints } from "@/lib/wagmi";
+import { useSession } from "@/providers/SessionProvider";
 import { useSmartWalletAccount } from "@/providers/SmartWalletAccountProvider";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useRef } from "react";
@@ -15,6 +16,7 @@ import { useAccount, useWalletClient } from "wagmi";
 export default function Page() {
   const params = useSearchParams();
   const router = useRouter();
+  const { logout } = useSession();
 
   const { address } = useAccount();
   const { isOpen, content: modalContent, openModal, closeModal } = useModal();
@@ -134,6 +136,7 @@ export default function Page() {
         {isLoading && <div>Loading...</div>}
         {error && <div>Error: {error.message}</div>}
         <div>Connected account: {address}</div>
+        <button onClick={logout}>Logout</button>
         <Modal isOpen={isOpen} onClose={closeModal}>
           {modalContent}
         </Modal>

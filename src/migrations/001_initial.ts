@@ -9,6 +9,7 @@ export async function up(db: Kysely<any>): Promise<void> {
     .addColumn("wallet_address", "varchar", (col) => col.notNull())
     .addColumn("passkey_id", "varchar", (col) => col.notNull())
     .addColumn("passkey_public_key", "varchar", (col) => col.notNull())
+    .addColumn("imported_account_data", "jsonb")
     .addColumn("created_at", "timestamp", (col) =>
       col.notNull().defaultTo(sql`CURRENT_TIMESTAMP`)
     )
